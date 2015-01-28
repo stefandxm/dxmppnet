@@ -32,7 +32,7 @@ namespace DXMPP
 			Stream ActiveStream;
             Timer KeepAliveTimer;
 
-			const int SendTimeout = 1000;
+			const int SendTimeout = 100;
 
 			private static bool ServerValidationCallback(object  Sender, 
 				X509Certificate Certificate,  X509Chain  Chain,  SslPolicyErrors  PolicyErrors)
