@@ -7,7 +7,7 @@ using System.Threading;
 
 namespace DXMPP
 {
-	public class Roster
+    public class Roster : IDisposable
 	{
 		public enum SubscribeResponse
 		{
@@ -31,7 +31,13 @@ namespace DXMPP
 
 		void PresenceHandler (XElement Node)
 		{
-			string type = Node.Attribute ("type").Value;
+            string type = "available";
+
+            if (Node.Attribute("type") != null)
+            {
+                type = Node.Attribute ("type").Value;
+            }
+
 			switch (type) {
 			case "subcribe":
 				HandleSubscribe (Node);
@@ -60,7 +66,7 @@ namespace DXMPP
 			if (ShowNode != null)
 				Show = ShowNode.Value;
 			XElement StatusNode = Node.XPathSelectElement ("//status");
-			if (Status != null)
+            if (StatusNode != null)
 				Show = StatusNode.Value;
 
 			if (OnPresence != null)
@@ -147,6 +153,15 @@ namespace DXMPP
 			this.Uplink = Uplink;
 			Uplink.OnPresence += PresenceHandler;
 		}
+
+        #region IDisposable implementation
+
+        public void Dispose()
+        {
+            Uplink.OnPresence -= PresenceHandler;
+        }
+
+        #endregion
 	}
 }
 

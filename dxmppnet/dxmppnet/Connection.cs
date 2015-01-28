@@ -63,7 +63,14 @@ namespace DXMPP
 
 		void Reset()
 		{
-			throw new NotImplementedException ();
+            try
+            {
+                Client.Dispose();
+                Roster.Dispose();
+            }
+            catch
+            {
+            }
 		}
 
 		void InitTLS()
@@ -91,6 +98,10 @@ namespace DXMPP
 
             Client = new Network.AsyncTCPXMLClient (Hostname, Portnumber, ClientGotData, ClientDisconnected);
 			OpenXMPPStream ();
+
+            if (MyJID.GetResource () == string.Empty)
+                MyJID.SetResource (System.Guid.NewGuid ().ToString ());
+            this.RosterMaintainer = new Roster(this);
 
 		}
 
@@ -261,7 +272,7 @@ namespace DXMPP
 			string Presence = "<presence/>";
 			Client.WriteTextToSocket (Presence);
 			CurrentConnectionState = ConnectionState.Connected;
-			//Client->SetKeepAliveByWhiteSpace(string(" "), 5);
+            Client.SetKeepAliveByWhiteSpace(" ", 10);
 		}
 		void CheckForBindSuccess(XElement Doc)
 		{
@@ -487,7 +498,8 @@ namespace DXMPP
 
 		public void Reconnect()
 		{
-			throw new NotImplementedException ();
+            Reset();
+            Connect();
 		}
 
 		/*
@@ -506,6 +518,16 @@ namespace DXMPP
         public delegate void OnConnectionStateChangedCallback(CallbackConnectionState NewState);
         public OnConnectionStateChangedCallback OnConnectionStateChanged;
 
+        Roster RosterMaintainer;
+
+        public Roster Roster
+        { 
+            get
+            {
+                return RosterMaintainer;
+            }
+        }
+
         public Connection (string Hostname, int Portnumber, JID RequestedJID, string Password)
 		{
 			this.Hostname = Hostname;
@@ -514,6 +536,7 @@ namespace DXMPP
 			if (MyJID.GetResource () == string.Empty)
 				MyJID.SetResource (System.Guid.NewGuid ().ToString ());
 			this.Password = Password;
+            this.RosterMaintainer = new Roster(this);
 		}
 	}
 }

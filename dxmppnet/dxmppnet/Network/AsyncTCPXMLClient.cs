@@ -30,6 +30,7 @@ namespace DXMPP
 			TcpClient Client;
 			SslStream TLSStream;
 			Stream ActiveStream;
+            Timer KeepAliveTimer;
 
 
 			private static bool ServerValidationCallback(object  Sender, 
@@ -330,6 +331,34 @@ namespace DXMPP
 				IncomingData = Data;
 			}
 
+            int KeepAliveTimerIntervalSeconds;
+            string WhiteSpaceToSend;
+            void SendKeepAliveWhitespace(object State)
+            {
+                if (LastSentDataToSocket > DateTime.Now.AddSeconds(-KeepAliveTimerIntervalSeconds))
+                    return;
+
+                WriteTextToSocket(WhiteSpaceToSend);
+            }
+
+
+            public void SetKeepAliveByWhiteSpace(string DataToSend = " ", 
+                int TimeoutSeconds = 10)
+            {
+                WhiteSpaceToSend = DataToSend;
+                KeepAliveTimerIntervalSeconds = TimeoutSeconds;
+                if (KeepAliveTimer != null)
+                    KeepAliveTimer = null;
+
+                KeepAliveTimer = new Timer(new TimerCallback(SendKeepAliveWhitespace), 
+                    null, 
+                    TimeoutSeconds*1000, 
+                    TimeoutSeconds*1000);
+
+                KeepAliveTimerIntervalSeconds = TimeoutSeconds;
+            }
+
+            DateTime LastSentDataToSocket;
 			public void WriteTextToSocket(string Data)
 			{
 				/*
@@ -338,6 +367,7 @@ namespace DXMPP
 				Console.WriteLine ("<<<");*/
 				byte[] OutgoingBuffer = Encoding.UTF8.GetBytes (Data);
 				lock (Client) {
+                    LastSentDataToSocket = DateTime.Now;
 					ActiveStream.Write (OutgoingBuffer, 0, OutgoingBuffer.Length);
 					ActiveStream.Flush ();
 				}
@@ -364,6 +394,13 @@ namespace DXMPP
 			public void Dispose ()
 			{
 				KillIO = true;
+
+                if (KeepAliveTimer != null)
+                {
+                    KeepAliveTimer.Dispose();
+                    KeepAliveTimer = null;
+                }
+
 				if(IOThread != null)
 					IOThread.Join ();
 
