@@ -89,7 +89,7 @@ namespace DXMPP
 				Client = null;
 			}
 
-			Client = new Network.AsyncTCPXMLClient (Hostname, Portnumber, ClientGotData);
+            Client = new Network.AsyncTCPXMLClient (Hostname, Portnumber, ClientGotData, ClientDisconnected);
 			OpenXMPPStream ();
 
 		}
@@ -169,7 +169,6 @@ namespace DXMPP
 			XElement StartTLSElement = CurrDoc.XPathSelectElement ("//starttls");
 			if (StartTLSElement != null) {
 				FeaturesStartTLS = true;
-				Console.WriteLine ("Features TLS");
 			}
 
 			var Mechanisms = CurrDoc.XPathSelectElements ("//mechanism");
@@ -179,19 +178,15 @@ namespace DXMPP
 
 				switch (MechanismName.ToUpper()) {
 				case "DIGEST-MD5":
-					Console.WriteLine ("Supports digest md5");
 					FeaturesSASL_DigestMD5 = true;
 					break;
 				case "CRAM-MD5":
-					Console.WriteLine ("Supports cram md5");
 					FeaturesSASL_CramMD5= true;
 					break;
 				case "SCRAM-SHA-1":
-					Console.WriteLine ("Supports scram sha-1");
 					FeaturesSASL_ScramSHA1 = true;
 					break;
 				case "PLAIN":
-					Console.WriteLine ("Supports plain");
 					FeaturesSASL_Plain = true;
 					break;
 				}
@@ -467,11 +462,8 @@ namespace DXMPP
 				return;
 			PreviouslyBroadcastedState = NewState;
 
-			// todo
-			//if(!ConnectionHandler)
-			//	return;
-
-			Console.WriteLine ("BroadcastConnectionState: " + NewState.ToString());
+            if (OnConnectionStateChanged != null)
+                OnConnectionStateChanged.Invoke(NewState);
 		}
 
 
@@ -511,7 +503,10 @@ namespace DXMPP
 		public delegate void OnStanzaCallback(Stanza Data);
 		public OnStanzaCallback OnStanza;
 
-		public Connection (string Hostname, int Portnumber, JID RequestedJID, string Password)
+        public delegate void OnConnectionStateChangedCallback(CallbackConnectionState NewState);
+        public OnConnectionStateChangedCallback OnConnectionStateChanged;
+
+        public Connection (string Hostname, int Portnumber, JID RequestedJID, string Password)
 		{
 			this.Hostname = Hostname;
 			this.Portnumber = Portnumber;

@@ -90,7 +90,11 @@ namespace DXMPP
 
 			public delegate void OnDataCallback();
 			OnDataCallback OnData;
-			volatile bool KillIO = false;
+
+            public delegate void OnDisconnectCallback();
+            OnDisconnectCallback OnDisconnect;
+
+            volatile bool KillIO = false;
 			string IncomingData = string.Empty;
 
 			public enum ReadMode
@@ -177,7 +181,7 @@ namespace DXMPP
 				}
 			}
 
-			void LoadAttributesFrom(XElement Element)
+			void LoadAttributesFromReaderToElement(XElement Element)
 			{
 				if(Reader.HasValue)
 					Element.SetValue (Reader.Value);
@@ -193,7 +197,6 @@ namespace DXMPP
 
 			XElement root;
 			XElement parent;
-
 
 			void XMLRead()
 			{
@@ -222,6 +225,16 @@ namespace DXMPP
 						if( root == null )
 						{
 							IsNewRootNode = true;
+
+                            if (Reader.NodeType == XmlNodeType.EndElement)
+                            {
+                                if (Reader.LocalName == "</stream:stream>")
+                                {
+                                    if (OnDisconnect != null)
+                                        OnDisconnect.Invoke();
+                                }
+                            }
+
 							if (Reader.NodeType != XmlNodeType.Element) {
 								OngoingReadTask = Reader.ReadAsync ();
 								return;
@@ -230,7 +243,7 @@ namespace DXMPP
 							NeedRecurse = !Reader.IsEmptyElement;
 
 							root = new XElement (Reader.LocalName);
-							LoadAttributesFrom (root);
+							LoadAttributesFromReaderToElement (root);
 							parent = root;
 						}
 
@@ -257,7 +270,7 @@ namespace DXMPP
 							case XmlNodeType.Element:
 								{
 									XElement Child = new XElement (Reader.LocalName);
-									LoadAttributesFrom (Child);
+									LoadAttributesFromReaderToElement (Child);
 									parent.Add (Child);
 									parent = Child;
 									break;
@@ -330,19 +343,17 @@ namespace DXMPP
 				}
 			}
 
-			public AsyncTCPXMLClient ( string Hostname, int Portnumber, OnDataCallback OnData )
+			public AsyncTCPXMLClient ( string Hostname, int Portnumber, OnDataCallback OnData, OnDisconnectCallback OnDisconnect )
 			{
 				this.Hostname = Hostname;
 				this.Portnumber = Portnumber;
 				this.OnData = OnData;
+                this.OnDisconnect = OnDisconnect;
 
-				Console.WriteLine ("Connecting");
 				Client = new TcpClient (this.Hostname, this.Portnumber);
 				ActiveStream = Client.GetStream ();
 				Client.ReceiveBufferSize = 1024;
 				//Client.NoDelay = true;
-				Console.WriteLine ("Connected.");
-
 
 				IOThread = new Thread (new ThreadStart (RunIO));
 				IOThread.Start ();

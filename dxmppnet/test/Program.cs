@@ -30,8 +30,15 @@ namespace Test
 						new DXMPP.JID("dxmpp@users/net"), "dxmpp");
 
 				Connection.OnStanza += HandleOnStanzaCallback;
+                Connection.OnConnectionStateChanged += HandleOnConnectionStateChangedCallback;
 				Connection.Connect();
 			}
+
+            void HandleOnConnectionStateChangedCallback (DXMPP.Connection.CallbackConnectionState NewState)
+            {
+                Console.WriteLine(NewState);
+            }
+                           
 
 			void HandleOnStanzaCallback (DXMPP.Stanza Data)
 			{
