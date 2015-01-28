@@ -57,6 +57,7 @@ namespace DXMPP
 
 			public void ConnectTLS(bool AllowSelfSignedCertificates)
 			{
+
 				TextRead ();
 				ClearRawTextData ();
 				lock (Client) {
@@ -72,7 +73,9 @@ namespace DXMPP
 						ActiveStream = TLSStream;
 					}
 					catch (System.Exception ex){
-						Console.WriteLine ("Connect tls failed: " + ex.ToString ());
+                        Console.WriteLine("TLS Error(s):");
+                        Console.WriteLine(ex.ToString());
+                        throw new Exception("Connection failed due to TLS errors: " + ex.ToString());
 					}
 				}
 
@@ -198,6 +201,7 @@ namespace DXMPP
 
 			XElement root;
 			XElement parent;
+            //int ParentDepth;
 
 			void XMLRead()
 			{
@@ -244,19 +248,29 @@ namespace DXMPP
 							NeedRecurse = !Reader.IsEmptyElement;
 
 							root = new XElement (Reader.LocalName);
+                            //ParentDepth = Reader.Depth;
 							LoadAttributesFromReaderToElement (root);
 							parent = root;
 						}
+
+                        /*if ((parent != root) &&
+                            Reader.Depth <= ParentDepth)
+                        {
+                            parent = parent.Parent;
+                            ParentDepth = Reader.Depth;
+                        }*/
 
 
 						if (!IsNewRootNode) {
 							switch (Reader.NodeType) {
 							case XmlNodeType.EndElement:
 								{
-									if (Reader.LocalName == root.Name.LocalName && Reader.Depth == 0) {
-										NeedRecurse = false;
-									}
-									break;
+                                    if (parent != root)
+                                        parent = parent.Parent;
+                                    else
+                                        NeedRecurse = false;
+                                    
+                                    break;
 								}
 							case XmlNodeType.CDATA:
 								{
@@ -270,10 +284,12 @@ namespace DXMPP
 								}
 							case XmlNodeType.Element:
 								{
+                                    //ParentDepth = Reader.Depth;                                    
 									XElement Child = new XElement (Reader.LocalName);
 									LoadAttributesFromReaderToElement (Child);
 									parent.Add (Child);
-									parent = Child;
+                                    if( !Reader.IsEmptyElement )
+									    parent = Child;
 									break;
 								}
 							}
@@ -359,18 +375,31 @@ namespace DXMPP
             }
 
             DateTime LastSentDataToSocket;
+
+            object ClientWriteLock = new object();
+
 			public void WriteTextToSocket(string Data)
 			{
 				/*
 				Console.WriteLine (">>>");
 				Console.WriteLine (Data);
 				Console.WriteLine ("<<<");*/
-				byte[] OutgoingBuffer = Encoding.UTF8.GetBytes (Data);
-				lock (Client) {
-                    LastSentDataToSocket = DateTime.Now;
-					ActiveStream.Write (OutgoingBuffer, 0, OutgoingBuffer.Length);
-					ActiveStream.Flush ();
-				}
+
+                try
+                {
+    				byte[] OutgoingBuffer = Encoding.UTF8.GetBytes (Data);
+                    lock (ClientWriteLock) {
+                        LastSentDataToSocket = DateTime.Now;
+    					ActiveStream.Write (OutgoingBuffer, 0, OutgoingBuffer.Length);
+    					ActiveStream.Flush ();
+    				}
+                }
+                catch(System.Exception ex)
+                {
+                    Console.WriteLine("Write text to socket failed: " + ex.ToString());
+                    if (OnDisconnect != null)
+                        OnDisconnect.Invoke();
+                }
 			}
 
 			public AsyncTCPXMLClient ( string Hostname, int Portnumber, OnDataCallback OnData, OnDisconnectCallback OnDisconnect )

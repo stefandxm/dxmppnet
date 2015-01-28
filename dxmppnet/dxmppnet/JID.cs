@@ -48,12 +48,24 @@ namespace DXMPP
 			SetResource (Resource);
 		}
 
-		public void SetResource(string Resource)
+		public void SetDomain(string Domain)
 		{
-			this.Resource = Resource;
+            this.Domain = Domain;
 		}
 
-		public string GetFullJID()
+        public void SetUsername(string Username)
+        {
+            this.Username = Username;
+        }
+
+
+        public void SetResource(string Resource)
+        {
+            this.Resource = Resource;
+        }
+
+
+        public string GetFullJID()
 		{
 			if (string.IsNullOrEmpty (Resource) 
 				&& string.IsNullOrEmpty (Username))

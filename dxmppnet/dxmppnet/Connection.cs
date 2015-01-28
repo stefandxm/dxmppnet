@@ -456,7 +456,10 @@ namespace DXMPP
 
 		void ClientDisconnected()
 		{
-			throw new NotImplementedException ();
+            CurrentAuthenticationState = AuthenticationState.None;
+            CurrentConnectionState = ConnectionState.ErrorUnknown;
+
+            BroadcastConnectionState(CallbackConnectionState.ErrorUnknown);
 		}
 
 		void ClientGotData()
@@ -508,6 +511,9 @@ namespace DXMPP
 
 		public void SendStanza( Stanza Data )
 		{
+            if (this.CurrentConnectionState != ConnectionState.Connected)
+                throw new InvalidOperationException("Trying tro send stanza disconnected");
+
 			Data.EnforceAttributes (MyJID);
 			Client.WriteTextToSocket (Data.ToString ());
 		}
