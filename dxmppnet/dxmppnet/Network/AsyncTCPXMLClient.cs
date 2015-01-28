@@ -32,6 +32,7 @@ namespace DXMPP
 			Stream ActiveStream;
             Timer KeepAliveTimer;
 
+			const int SendTimeout = 1000;
 
 			private static bool ServerValidationCallback(object  Sender, 
 				X509Certificate Certificate,  X509Chain  Chain,  SslPolicyErrors  PolicyErrors)
@@ -68,7 +69,7 @@ namespace DXMPP
 					try
 					{
 						TLSStream = new SslStream (ActiveStream, true, CertValidationCallback);
-
+						TLSStream.WriteTimeout = SendTimeout;
 						TLSStream.AuthenticateAsClient (Hostname);
 						ActiveStream = TLSStream;
 					}
@@ -205,7 +206,7 @@ namespace DXMPP
 
 			void XMLRead()
 			{
-				lock(Client)
+				//lock(Client)
 				{
 					if (OngoingReadTask == null) {
 						XmlReaderSettings settings = new XmlReaderSettings ();
@@ -313,8 +314,14 @@ namespace DXMPP
 
 			void RunIO()
 			{
-				while (!KillIO) {
-					Thread.Sleep (10);
+				const int NrFramesToSleep = 500;
+				int NrToSleep = NrFramesToSleep;
+                while (!KillIO) {
+					if (NrToSleep-- < 1)
+					{
+						Thread.Sleep (10);
+						NrToSleep = NrFramesToSleep;
+                    }
 					switch(Mode)
 					{
 					case ReadMode.Text:
@@ -411,8 +418,10 @@ namespace DXMPP
 
 				Client = new TcpClient (this.Hostname, this.Portnumber);
 				ActiveStream = Client.GetStream ();
-				Client.ReceiveBufferSize = 1024;
+				//Client.ReceiveBufferSize = 1024;
 				//Client.NoDelay = true;
+				//Client.NoDelay = true;
+				Client.SendTimeout = SendTimeout;
 
 				IOThread = new Thread (new ThreadStart (RunIO));
 				IOThread.Start ();
