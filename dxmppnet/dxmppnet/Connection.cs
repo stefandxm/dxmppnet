@@ -179,7 +179,7 @@ namespace DXMPP
 
 			XElement StartTLSElement = CurrDoc.XPathSelectElement ("//starttls");
 			if (StartTLSElement != null) {
-				//FeaturesStartTLS = true;
+				FeaturesStartTLS = true;
 			}
 
 			var Mechanisms = CurrDoc.XPathSelectElements ("//mechanism");
