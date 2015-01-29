@@ -143,12 +143,14 @@ namespace DXMPP
 
 						if (Mode == ReadMode.XML) {
                             RestartXMLReader = true;
+							XMLStream.ClearStart();
 						}
 
                         this.Mode = Mode;
 
 						if (this.Mode == ReadMode.Text) 
 						{
+							XMLStream.Stop();
 							try {
 								if (OngoingXmlTask != null) {
 									//OngoingXmlTask.Wait();
@@ -183,58 +185,80 @@ namespace DXMPP
             {
                 lock(Client)
                 {
-                    if (Client.Available == 0)
-                        return;
+					try
+					{
+						if (Client.Available == 0)
+							return;
 
-                    int NrToGet = Client.Available;
+						int NrToGet = Client.Available;
 
-                    byte[] IncomingBuffer = new byte[NrToGet];
+						byte[] IncomingBuffer = new byte[NrToGet];
 
-                    int NrGot = ActiveStream.Read (IncomingBuffer, 0, NrToGet);
-                    lock (IncomingData) {
-                        string NewData = Encoding.UTF8.GetString (IncomingBuffer, 0, NrGot);
-                        XMLStream.PushStringData(NewData);
-                    }
-
-                
-                }
+						int NrGot = ActiveStream.Read(IncomingBuffer, 0, NrToGet);
+						lock (IncomingData)
+						{
+							string NewData = Encoding.UTF8.GetString(IncomingBuffer, 0, NrGot);
+							XMLStream.PushStringData(NewData);
+						}
+					}
+					catch
+					{
+						if (OnDisconnect == null)
+							OnDisconnect.Invoke();
+					}
+				}
             }
 
 			void TextRead()
 			{
 				lock(Client)
 				{
-					if (Client.Available == 0)
-						return;
+					try
+					{
+						if (Client.Available == 0)
+							return;
 
-					int NrToGet = Client.Available;
+						int NrToGet = Client.Available;
 
-					byte[] IncomingBuffer = new byte[NrToGet];
+						byte[] IncomingBuffer = new byte[NrToGet];
 
-					int NrGot = ActiveStream.Read (IncomingBuffer, 0, NrToGet);
-					lock (IncomingData) {
-						string NewData = Encoding.UTF8.GetString (IncomingBuffer, 0, NrGot);
-						/*Console.WriteLine ("+++");
-						Console.WriteLine (NewData);
-						Console.WriteLine ("---");*/
-						IncomingData += NewData;
+						int NrGot = ActiveStream.Read(IncomingBuffer, 0, NrToGet);
+						lock (IncomingData)
+						{
+							string NewData = Encoding.UTF8.GetString(IncomingBuffer, 0, NrGot);
+							/*Console.WriteLine ("+++");
+							Console.WriteLine (NewData);
+							Console.WriteLine ("---");*/
+							IncomingData += NewData;
+						}
+
+						NewEvents.Enqueue(new Events(Events.EventType.GotData));
 					}
-                        
-                    NewEvents.Enqueue(new Events(  Events.EventType.GotData ) );
+					catch
+					{
+						if (OnDisconnect == null)
+							OnDisconnect.Invoke();
+					}
 				}
 			}
             bool RestartXMLReader = false;
                 
             void InnerXMLRead()
             {
-                XmlReader Reader = XmlReader.Create(XMLStream);
+				if (!XMLStream.HasData)
+					return;
+
+				XmlReaderSettings Settings = new XmlReaderSettings();
+				Settings.ValidationType = ValidationType.None;
+				Settings.ConformanceLevel = ConformanceLevel.Fragment;
+                XmlReader Reader = XmlReader.Create(XMLStream, Settings);
 
                 XElement RootNode = null;
                 XElement CurrentElement = null;
+
                 while (Reader.Read() && !RestartXMLReader)
                 {
-                    //Console.WriteLine("Got localname {0} with type {1}", Reader.Name, Reader.NodeType);
-                    switch (Reader.NodeType)
+					switch (Reader.NodeType)
                     {
                         case XmlNodeType.Attribute:
                             break;
@@ -258,7 +282,8 @@ namespace DXMPP
                         case XmlNodeType.Element:
                             {
                                 bool SelfClosing = Reader.IsEmptyElement;
-                                if (RootNode == null)
+
+								if (RootNode == null)
                                 {
                                     RootNode = new XElement(Reader.LocalName);
                                     CurrentElement = RootNode;
@@ -266,8 +291,9 @@ namespace DXMPP
                                 else
                                 {
                                     XElement NewCurrentElement = new XElement(Reader.LocalName);
-                                    RootNode.Add(NewCurrentElement);
-                                    CurrentElement = NewCurrentElement;
+                                    CurrentElement.Add(NewCurrentElement);
+									if(!SelfClosing)
+										CurrentElement = NewCurrentElement;
                                 }
                                 LoadAttributesFromReaderToElement(Reader, CurrentElement);
 
@@ -275,10 +301,6 @@ namespace DXMPP
                                 {
                                     if (CurrentElement == RootNode)
                                     {
-                                        /*Console.WriteLine("+++");
-                                        Console.WriteLine(RootNode);
-                                        Console.WriteLine("---");*/
-
                                         Documents.Enqueue(RootNode);
                                         RootNode = CurrentElement = null;
 
@@ -292,22 +314,18 @@ namespace DXMPP
                             {
                                 if (CurrentElement == null)
                                     continue;
-
-                                CurrentElement = CurrentElement.Parent;
-
+								
                                 if (CurrentElement == RootNode)
                                 {
-                                    /*Console.WriteLine("+++");
-                                    Console.WriteLine(RootNode);
-                                    Console.WriteLine("---");*/
-
                                     Documents.Enqueue(RootNode);
                                     RootNode = CurrentElement = null;
 
-                                    NewEvents.Enqueue(new Events(Events.EventType.GotData));
+                                    NewEvents.Enqueue(new Events(Events.EventType.GotData));									
                                 }
-                            }
-                            break;
+								else
+									CurrentElement = CurrentElement.Parent;
+							}
+							break;
                         case XmlNodeType.EndEntity:
                             break;
                         case XmlNodeType.Entity:
@@ -349,11 +367,12 @@ namespace DXMPP
 
                     try
                     {
-                        RestartXMLReader = false;
+                        RestartXMLReader = false;						
                         InnerXMLRead();
                     }
-                    catch
+                    catch (Exception e)
                     {
+						int breakhere = 1;
                         // No
                     }
 
@@ -414,8 +433,8 @@ namespace DXMPP
                                         OnData.Invoke();
                                 }
                                 break;
-                        }
-                    }
+						}
+					}
                 }
             }
             volatile bool KillIO = false;
@@ -530,6 +549,7 @@ namespace DXMPP
 				KillIO = true;
                 KillXMLParser = true;
                 KillEvents = true;
+				XMLStream.Stop();
 
                 if (KeepAliveTimer != null)
                 {

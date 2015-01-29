@@ -14,18 +14,19 @@ namespace DXMPP.Network
         }
         public override int Read(byte[] buffer, int offset, int count)
         {
-            for (int i = 0; i < count; i++)
+			int i = 0;
+            for ( /* no */ ; i < count && !Stopped; i++)
             {
                 byte SmallData;
-                /*if (i == 0)
+                if (i == 0)
                 {
                     // Block
-                    while (!Data.TryDequeue(out SmallData))
+                    while (!Data.TryDequeue(out SmallData) && !Stopped)
                     {
                         // Block
                     }
                 }
-                else*/
+                else
                 {
                     if(!Data.TryDequeue(out SmallData))
                         return i;
@@ -34,7 +35,7 @@ namespace DXMPP.Network
                 buffer[i + offset] = SmallData;
             }
 
-            return count;
+            return i;
         }
 
         public override long Seek(long offset, SeekOrigin origin)
@@ -91,7 +92,29 @@ namespace DXMPP.Network
         }
         #endregion
 
-        public void PushStringData( string NewData )
+		public bool HasData
+		{
+			get
+			{
+				return !Data.IsEmpty;
+			}
+		}
+
+		bool Stopped = false;
+
+		public void Stop()
+		{
+			Stopped = true;
+		}
+
+		public void ClearStart()
+		{
+			byte b;
+			while (Data.TryDequeue(out b)) ;
+			Stopped = false;
+		}
+
+		public void PushStringData( string NewData )
         {
             byte[] RawData = System.Text.UTF8Encoding.Default.GetBytes(NewData);
 
