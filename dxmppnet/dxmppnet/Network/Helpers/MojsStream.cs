@@ -1,106 +1,129 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace DXMPP.Network
 {
-    internal class MojsStream : Stream 
-    {
-        System.Collections.Concurrent.ConcurrentQueue<byte> Data = 
-            new System.Collections.Concurrent.ConcurrentQueue<byte>();
+	internal class MojsStream : Stream
+	{
+		LinkedList<byte[]> Data = new LinkedList<byte[]>();
 
-        #region implemented abstract members of Stream
-        public override void Flush()
-        {
-        }
-        public override int Read(byte[] buffer, int offset, int count)
-        {
+
+		#region implemented abstract members of Stream
+		public override void Flush()
+		{
+		}
+		public override int Read(byte[] buffer, int offset, int count)
+		{
 			int i = 0;
-            for ( /* no */ ; i < count && !Stopped; i++)
-            {
-                byte SmallData;
-                if (i == 0)
-                {
-                    // Block
-                    while (!Data.TryDequeue(out SmallData) && !Stopped)
-                    {
-                        // Block
-                    }
-                }
-                else
-                {
-                    if(!Data.TryDequeue(out SmallData))
-                        return i;
-                }
+			bool Sleep = false;
+			for ( /* no */ ; i < count && !Stopped;)
+			{
+				if (Sleep)
+				{
+					System.Threading.Thread.Sleep(5);
+					Sleep = false;
+				}
 
-                buffer[i + offset] = SmallData;
-            }
+				lock (Data)
+				{
+					LinkedListNode<byte[]> SmallData = Data.First;
+					if (i == 0 && SmallData == null)
+					{
+						Sleep = true;
+						continue;
+					}
 
-            return i;
-        }
+					if (SmallData == null)
+						break;
 
-        public override long Seek(long offset, SeekOrigin origin)
-        {
-            throw new InvalidOperationException();
-        }
+					Data.RemoveFirst();
 
-        public override void SetLength(long value)
-        {
-        }
+					int BytesToCopyFromThisSegment = Math.Min(SmallData.Value.Length, count - i);
+					Buffer.BlockCopy(SmallData.Value, 0, buffer, i, BytesToCopyFromThisSegment);
+					i += BytesToCopyFromThisSegment;
 
-        public override void Write(byte[] buffer, int offset, int count)
-        {
-        }
+					if (BytesToCopyFromThisSegment < SmallData.Value.Length)
+					{
+						int RemainingByteCount = SmallData.Value.Length - BytesToCopyFromThisSegment;
+						byte[] RemainingBytesFromThisSegment = new byte[RemainingByteCount];
+						Buffer.BlockCopy(SmallData.Value, BytesToCopyFromThisSegment, RemainingBytesFromThisSegment, 0, RemainingByteCount);
+						Data.AddFirst(RemainingBytesFromThisSegment);
+					}
 
-        public override bool CanRead
-        {
-            get
-            {
-                return true;
-            }
-        }
-        public override bool CanSeek
-        {
-            get
-            {
-                return false;
-            }
-        }
-        public override bool CanWrite
-        {
-            get
-            {
-                return false;
-            }
-        }
-        public override long Length
-        {
-            get
-            {
-                return 1;
-            }
-        }
-        public override long Position
-        {
-            get
-            {
-                return 1;
-            }
-            set
-            {
-                throw new InvalidOperationException();
-            }
-        }
-        #endregion
+					if (!HasData)
+						break;
+				}
+			}
+			return i;
+
+
+		}
+
+		public override long Seek(long offset, SeekOrigin origin)
+		{
+			throw new InvalidOperationException();
+		}
+
+		public override void SetLength(long value)
+		{
+		}
+
+		public override void Write(byte[] buffer, int offset, int count)
+		{
+		}
+
+		public override bool CanRead
+		{
+			get
+			{
+				return true;
+			}
+		}
+		public override bool CanSeek
+		{
+			get
+			{
+				return false;
+			}
+		}
+		public override bool CanWrite
+		{
+			get
+			{
+				return false;
+			}
+		}
+		public override long Length
+		{
+			get
+			{
+				return 1;
+			}
+		}
+		public override long Position
+		{
+			get
+			{
+				return 1;
+			}
+			set
+			{
+				throw new InvalidOperationException();
+			}
+		}
+		#endregion
 
 		public bool HasData
 		{
 			get
 			{
-				return !Data.IsEmpty;
+				lock (Data)
+					return (Data.First != null);
 			}
 		}
 
-		bool Stopped = false;
+		volatile bool Stopped = false;
 
 		public void Stop()
 		{
@@ -109,20 +132,16 @@ namespace DXMPP.Network
 
 		public void ClearStart()
 		{
-			byte b;
-			while (Data.TryDequeue(out b)) ;
+			lock (Data)
+				Data.Clear();
 			Stopped = false;
 		}
 
-		public void PushStringData( string NewData )
-        {
-            byte[] RawData = System.Text.UTF8Encoding.Default.GetBytes(NewData);
-
-            foreach (byte SmallData in RawData)
-            {
-                Data.Enqueue(SmallData);
-            }
-        }
-    }
+		public void PushStringData(byte[] NewData)
+		{
+			lock (Data)
+				Data.AddLast(NewData);
+		}
+	}
 }
 
