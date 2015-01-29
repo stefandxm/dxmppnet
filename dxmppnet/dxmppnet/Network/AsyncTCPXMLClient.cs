@@ -31,6 +31,7 @@ namespace DXMPP
 			SslStream TLSStream;
 			Stream ActiveStream;
             Timer KeepAliveTimer;
+            MojsStream XMLStream;
 
 			const int SendTimeout = 100;
 
@@ -96,10 +97,26 @@ namespace DXMPP
 			public delegate void OnDataCallback();
 			OnDataCallback OnData;
 
+            class Events
+            {
+                public enum EventType
+                {
+                    GotData
+                }
+
+                public Events(Events.EventType What)
+                {
+                    this.What = What;
+                }
+
+                public EventType What;
+            }
+
+            System.Collections.Concurrent.ConcurrentQueue<Events> NewEvents = new System.Collections.Concurrent.ConcurrentQueue<Events>();
+
             public delegate void OnDisconnectCallback();
             OnDisconnectCallback OnDisconnect;
-
-            volatile bool KillIO = false;
+                      
 			string IncomingData = string.Empty;
 
 			public enum ReadMode
@@ -123,10 +140,12 @@ namespace DXMPP
 							return;
 
 						//Console.WriteLine ("Switching to read mode: " + Mode.ToString ());
-						this.Mode = Mode;
 
-						if (this.Mode == ReadMode.XML) {
+						if (Mode == ReadMode.XML) {
+                            RestartXMLReader = true;
 						}
+
+                        this.Mode = Mode;
 
 						if (this.Mode == ReadMode.Text) 
 						{
@@ -160,7 +179,26 @@ namespace DXMPP
 				}
 			}
 
+            void PushDataToXMLParserStream()
+            {
+                lock(Client)
+                {
+                    if (Client.Available == 0)
+                        return;
 
+                    int NrToGet = Client.Available;
+
+                    byte[] IncomingBuffer = new byte[NrToGet];
+
+                    int NrGot = ActiveStream.Read (IncomingBuffer, 0, NrToGet);
+                    lock (IncomingData) {
+                        string NewData = Encoding.UTF8.GetString (IncomingBuffer, 0, NrGot);
+                        XMLStream.PushStringData(NewData);
+                    }
+
+                
+                }
+            }
 
 			void TextRead()
 			{
@@ -181,136 +219,162 @@ namespace DXMPP
 						Console.WriteLine ("---");*/
 						IncomingData += NewData;
 					}
-
-					OnData.Invoke ();
+                        
+                    NewEvents.Enqueue(new Events(  Events.EventType.GotData ) );
 				}
 			}
+            bool RestartXMLReader = false;
+                
+            void InnerXMLRead()
+            {
+                XmlReader Reader = XmlReader.Create(XMLStream);
 
-			void LoadAttributesFromReaderToElement(XElement Element)
-			{
-				if(Reader.HasValue)
-					Element.SetValue (Reader.Value);
-
-				if (Reader.HasAttributes) {
-					while (Reader.MoveToNextAttribute ()) {
-						string attrname = Reader.LocalName;
-						if (Reader.ReadAttributeValue () && attrname != "xmlns")
-							Element.SetAttributeValue (attrname, Reader.Value);
-					}
-				}
-			}
-
-			XElement root;
-			XElement parent;
-            //int ParentDepth;
-
-			void XMLRead()
-			{
-				//lock(Client)
-				{
-					if (OngoingReadTask == null) {
-						XmlReaderSettings settings = new XmlReaderSettings ();
-						settings.ConformanceLevel = ConformanceLevel.Fragment;
-						settings.CloseInput = false;
-						settings.IgnoreWhitespace = true;
-						settings.DtdProcessing = DtdProcessing.Ignore;
-						settings.ValidationType = ValidationType.None;
-						settings.Async = true;
-						settings.IgnoreProcessingInstructions = true;
-						settings.ValidationFlags = System.Xml.Schema.XmlSchemaValidationFlags.None;
-						Reader = XmlReader.Create (ActiveStream, settings);
-						OngoingReadTask = Reader.ReadAsync ();
-						root = parent = null;
-						return;
-					}
-
-					if (OngoingReadTask.IsCompleted) {
-
-						bool IsNewRootNode = false;
-						bool NeedRecurse = true;
-						if( root == null )
-						{
-							IsNewRootNode = true;
-
-                            if (Reader.NodeType == XmlNodeType.EndElement)
+                XElement RootNode = null;
+                XElement CurrentElement = null;
+                while (Reader.Read() && !RestartXMLReader)
+                {
+                    //Console.WriteLine("Got localname {0} with type {1}", Reader.Name, Reader.NodeType);
+                    switch (Reader.NodeType)
+                    {
+                        case XmlNodeType.Attribute:
+                            break;
+                        case XmlNodeType.CDATA:
                             {
-                                if (Reader.LocalName == "</stream:stream>")
+                                if (CurrentElement == null)
+                                    continue;
+
+                                XCData PureData = new XCData(Reader.Value);
+                                CurrentElement.Add(PureData);
+                            }
+                            break;
+                        case XmlNodeType.Comment:
+                            break;
+                        case XmlNodeType.Document:
+                            break;
+                        case XmlNodeType.DocumentFragment:
+                            break;
+                        case XmlNodeType.DocumentType:
+                            break;
+                        case XmlNodeType.Element:
+                            {
+                                bool SelfClosing = Reader.IsEmptyElement;
+                                if (RootNode == null)
                                 {
-                                    if (OnDisconnect != null)
-                                        OnDisconnect.Invoke();
+                                    RootNode = new XElement(Reader.LocalName);
+                                    CurrentElement = RootNode;
+                                }
+                                else
+                                {
+                                    XElement NewCurrentElement = new XElement(Reader.LocalName);
+                                    RootNode.Add(NewCurrentElement);
+                                    CurrentElement = NewCurrentElement;
+                                }
+                                LoadAttributesFromReaderToElement(Reader, CurrentElement);
+
+                                if (SelfClosing)
+                                {
+                                    if (CurrentElement == RootNode)
+                                    {
+                                        /*Console.WriteLine("+++");
+                                        Console.WriteLine(RootNode);
+                                        Console.WriteLine("---");*/
+
+                                        Documents.Enqueue(RootNode);
+                                        RootNode = CurrentElement = null;
+
+                                        NewEvents.Enqueue(new Events(Events.EventType.GotData));
+                                    }
+                                }
+
+                                break;
+                            }
+                        case XmlNodeType.EndElement:
+                            {
+                                if (CurrentElement == null)
+                                    continue;
+
+                                CurrentElement = CurrentElement.Parent;
+
+                                if (CurrentElement == RootNode)
+                                {
+                                    /*Console.WriteLine("+++");
+                                    Console.WriteLine(RootNode);
+                                    Console.WriteLine("---");*/
+
+                                    Documents.Enqueue(RootNode);
+                                    RootNode = CurrentElement = null;
+
+                                    NewEvents.Enqueue(new Events(Events.EventType.GotData));
                                 }
                             }
+                            break;
+                        case XmlNodeType.EndEntity:
+                            break;
+                        case XmlNodeType.Entity:
+                            break;
+                        case XmlNodeType.EntityReference:
+                            break;
+                        case XmlNodeType.None:
+                            break;
+                        case XmlNodeType.ProcessingInstruction:
+                            break;
+                        case XmlNodeType.SignificantWhitespace:
+                            break;
+                        case XmlNodeType.Text:
+                            {
+                                if (CurrentElement == null)
+                                    continue;
 
-							if (Reader.NodeType != XmlNodeType.Element) {
-								OngoingReadTask = Reader.ReadAsync ();
-								return;
-							}
+                                XText PureText = new XText(Reader.Value);
+                                CurrentElement.Add(PureText);
+                            }
+                            break;
+                        case XmlNodeType.Whitespace:
+                            break;
+                        case XmlNodeType.XmlDeclaration:
+                            break;
 
-							NeedRecurse = !Reader.IsEmptyElement;
+                    }
+                }
+            }
 
-							root = new XElement (Reader.LocalName);
-                            //ParentDepth = Reader.Depth;
-							LoadAttributesFromReaderToElement (root);
-							parent = root;
-						}
+            void BlockingXMLRead()
+            {
+                while (!KillXMLParser)
+                {
+                    System.Threading.Thread.Sleep(20);
 
-                        /*if ((parent != root) &&
-                            Reader.Depth <= ParentDepth)
-                        {
-                            parent = parent.Parent;
-                            ParentDepth = Reader.Depth;
-                        }*/
+                    if (Mode != ReadMode.XML)
+                        continue;
 
+                    try
+                    {
+                        RestartXMLReader = false;
+                        InnerXMLRead();
+                    }
+                    catch
+                    {
+                        // No
+                    }
 
-						if (!IsNewRootNode) {
-							switch (Reader.NodeType) {
-							case XmlNodeType.EndElement:
-								{
-                                    if (parent != root)
-                                        parent = parent.Parent;
-                                    else
-                                        NeedRecurse = false;
-                                    
-                                    break;
-								}
-							case XmlNodeType.CDATA:
-								{
-									parent.Add (new XCData (Reader.Value));
-									break;
-								}
-							case XmlNodeType.Text:
-								{
-									parent.Add (new XText (Reader.Value));
-									break;
-								}
-							case XmlNodeType.Element:
-								{
-                                    //ParentDepth = Reader.Depth;                                    
-									XElement Child = new XElement (Reader.LocalName);
-									LoadAttributesFromReaderToElement (Child);
-									parent.Add (Child);
-                                    if( !Reader.IsEmptyElement )
-									    parent = Child;
-									break;
-								}
-							}
-						}
+                }
+            }
 
+            static void LoadAttributesFromReaderToElement(XmlReader Reader, XElement Element)
+            {
+                if(Reader.HasValue)
+                    Element.SetValue (Reader.Value);
 
-						if (NeedRecurse) {
-							OngoingReadTask = Reader.ReadAsync ();
-							return;
-						}
+                if (Reader.HasAttributes) {
+                    while (Reader.MoveToNextAttribute ()) {
+                        string attrname = Reader.LocalName;
+                        if (Reader.ReadAttributeValue () && attrname != "xmlns")
+                            Element.SetAttributeValue (attrname, Reader.Value);
+                    }
+                }
+            }
 
-						Documents.Enqueue (root);
-						root = parent = null;
-						OnData.Invoke ();
-
-						if(Mode == ReadMode.XML)
-							OngoingReadTask = Reader.ReadAsync ();
-					}
-				}
-			}
+			
 
 			void RunIO()
 			{
@@ -327,13 +391,40 @@ namespace DXMPP
 					case ReadMode.Text:
 						TextRead ();
 						break;
-					case ReadMode.XML:
-						XMLRead ();
-						break;
+                    case ReadMode.XML:
+                        PushDataToXMLParserStream();
+					break;
 					}
 				}
 			}
+
+            void RunEvents()
+            {
+                while (!KillEvents) {
+                    System.Threading.Thread.Sleep(20);
+
+                    Events Event;
+                    while (NewEvents.TryDequeue(out Event))
+                    {
+                        switch (Event.What)
+                        {
+                            case Events.EventType.GotData:
+                                {
+                                    if (OnData != null)
+                                        OnData.Invoke();
+                                }
+                                break;
+                        }
+                    }
+                }
+            }
+            volatile bool KillIO = false;
+            volatile bool KillXMLParser = false;
+            volatile bool KillEvents = false;
+
 			Thread IOThread;
+            Thread ParseXMLThread;
+            Thread EventsThread;
 
 			public string GetRawTextData()
 			{
@@ -416,15 +507,20 @@ namespace DXMPP
 				this.OnData = OnData;
                 this.OnDisconnect = OnDisconnect;
 
+                XMLStream = new MojsStream();
 				Client = new TcpClient (this.Hostname, this.Portnumber);
 				ActiveStream = Client.GetStream ();
-				//Client.ReceiveBufferSize = 1024;
-				//Client.NoDelay = true;
-				//Client.NoDelay = true;
+
 				Client.SendTimeout = SendTimeout;
 
 				IOThread = new Thread (new ThreadStart (RunIO));
 				IOThread.Start ();
+
+                EventsThread = new Thread (new ThreadStart (RunEvents));
+                EventsThread.Start ();
+
+                ParseXMLThread = new Thread (new ThreadStart (BlockingXMLRead));
+                ParseXMLThread.Start ();
 			}
 
 			#region IDisposable implementation
@@ -432,6 +528,8 @@ namespace DXMPP
 			public void Dispose ()
 			{
 				KillIO = true;
+                KillXMLParser = true;
+                KillEvents = true;
 
                 if (KeepAliveTimer != null)
                 {
@@ -441,6 +539,10 @@ namespace DXMPP
 
 				if(IOThread != null)
 					IOThread.Join ();
+                if(ParseXMLThread != null)
+                    ParseXMLThread.Join ();
+                if(EventsThread != null)
+                    EventsThread.Join ();
 
 				if (Client != null) {
 					Client.Close ();

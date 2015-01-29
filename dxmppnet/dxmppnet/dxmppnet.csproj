@@ -41,10 +41,15 @@
     <Compile Include="SASL\SASLMechanism_PLAIN.cs" />
     <Compile Include="Stanza.cs" />
     <Compile Include="Roster.cs" />
+    <Compile Include="Network\Helpers\MojsStream.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
     <Folder Include="Network\" />
     <Folder Include="SASL\" />
+    <Folder Include="Network\Helpers\" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>

@@ -20,7 +20,4 @@ Global
 		{F3B7AE3D-1D82-475B-B043-A5AB6CC99FDF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F3B7AE3D-1D82-475B-B043-A5AB6CC99FDF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
-	GlobalSection(MonoDevelopProperties) = preSolution
-		StartupItem = test\Test.csproj
-	EndGlobalSection
 EndGlobal
