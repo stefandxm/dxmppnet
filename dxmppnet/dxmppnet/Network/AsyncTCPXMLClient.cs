@@ -282,31 +282,28 @@ namespace DXMPP
 							{
 								bool SelfClosing = Reader.IsEmptyElement;
 
+								XElement NewElement = new XElement(Reader.LocalName);
+								LoadAttributesFromReaderToElement(Reader, NewElement);
+
 								if (RootNode == null)
 								{
-									RootNode = new XElement(Reader.LocalName);
-									CurrentElement = RootNode;
-								}
-								else
-								{
-									XElement NewCurrentElement = new XElement(Reader.LocalName);
-									CurrentElement.Add(NewCurrentElement);
-									if (!SelfClosing)
-										CurrentElement = NewCurrentElement;
-								}
-								LoadAttributesFromReaderToElement(Reader, CurrentElement);
+									RootNode = NewElement;
+                                    CurrentElement = RootNode;
 
-								if (SelfClosing)
-								{
-									if (CurrentElement == RootNode)
+									if (SelfClosing)
 									{
 										Log(2, "Enqueing document: {0}", RootNode.ToString());
 										Documents.Enqueue(RootNode);
 										RootNode = CurrentElement = null;
-
 										NewEvents.Enqueue(new Events(Events.EventType.GotData));
 									}
 								}
+								else
+								{
+									CurrentElement.Add(NewElement);
+									if (!SelfClosing)
+										CurrentElement = NewElement;
+								}								
 
 								break;
 							}
