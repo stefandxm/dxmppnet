@@ -13,7 +13,6 @@ using System.Xml.Linq;
 using System.Xml.XPath;
 using System.Linq;
 using System.IO;
-using System.Threading.Tasks;
 
 using System.Collections.Generic;
 using System.Collections.Concurrent;
@@ -129,65 +128,27 @@ namespace DXMPP
 			}
 
 			ReadMode Mode;
-			XmlReader Reader;
-			Task<string> OngoingXmlTask;
-			Task<bool> OngoingReadTask;
 
 			public void SetReadMode(ReadMode Mode)
 			{
-				try
+				lock (Client)
 				{
-					lock (Client)
+					if (Mode == this.Mode)
+						return;
+
+					//Console.WriteLine ("Switching to read mode: " + Mode.ToString ());
+
+					if (Mode == ReadMode.XML)
 					{
-						if (Mode == this.Mode)
-							return;
-
-						//Console.WriteLine ("Switching to read mode: " + Mode.ToString ());
-
-						if (Mode == ReadMode.XML)
-						{
-							RestartXMLReader = true;
-							XMLStream.ClearStart();
-						}
-
-						this.Mode = Mode;
-
-						if (this.Mode == ReadMode.Text)
-						{
-							XMLStream.Stop();
-							try
-							{
-								if (OngoingXmlTask != null)
-								{
-									//OngoingXmlTask.Wait();
-									OngoingXmlTask = null;
-								}
-								if (OngoingReadTask != null)
-								{
-									//OngoingReadTask.Wait();
-									OngoingReadTask = null;
-								}
-								if (Reader != null)
-								{
-									try
-									{
-										Reader.Dispose();
-									}
-									catch
-									{
-									}
-									Reader = null;
-								}
-							}
-							catch
-							{
-							}
-						}
+						RestartXMLReader = true;
+						XMLStream.ClearStart();
 					}
-				}
-				catch (System.Exception ex)
-				{
-					Console.WriteLine("Set read mode threw " + ex.ToString());
+
+					this.Mode = Mode;
+
+					if (this.Mode == ReadMode.Text)
+						XMLStream.Stop();
+
 				}
 			}
 
