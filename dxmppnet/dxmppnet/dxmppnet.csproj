@@ -49,7 +49,4 @@
     <Folder Include="SASL\" />
     <Folder Include="Network\Helpers\" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
-  </ItemGroup>
 </Project>
