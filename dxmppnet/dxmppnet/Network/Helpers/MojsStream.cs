@@ -40,7 +40,7 @@ namespace DXMPP.Network
 					Data.RemoveFirst();
 
 					int BytesToCopyFromThisSegment = Math.Min(SmallData.Value.Length, count - i);
-					Buffer.BlockCopy(SmallData.Value, 0, buffer, i, BytesToCopyFromThisSegment);
+					Buffer.BlockCopy(SmallData.Value, 0, buffer, offset + i, BytesToCopyFromThisSegment);
 					i += BytesToCopyFromThisSegment;
 
 					if (BytesToCopyFromThisSegment < SmallData.Value.Length)
@@ -55,6 +55,9 @@ namespace DXMPP.Network
 						break;
 				}
 			}
+			//Console.WriteLine("Reading. Requested offset: {0}, count: {1}, returned: {2}, text: {3}", 
+			//	offset, count, i, System.Text.Encoding.UTF8.GetString(buffer));
+
 			return i;
 
 

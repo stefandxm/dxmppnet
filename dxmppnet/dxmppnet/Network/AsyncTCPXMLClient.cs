@@ -24,6 +24,9 @@ namespace DXMPP
 	{
 		internal class AsyncTCPXMLClient : IDisposable
 		{
+
+			int DebugLevel = 0;
+
 			string Hostname;
 			int Portnumber;
 			TcpClient Client;
@@ -33,6 +36,12 @@ namespace DXMPP
 			MojsStream XMLStream;
 
 			const int SendTimeout = 20000;
+
+			private void Log(int Level, string Message, params object[] FormatObjs)
+			{
+				if (Level <= DebugLevel)
+					Console.WriteLine(Message, FormatObjs);
+			}
 
 			private static bool ServerValidationCallback(object Sender,
 				X509Certificate Certificate, X509Chain Chain, SslPolicyErrors PolicyErrors)
@@ -75,9 +84,8 @@ namespace DXMPP
 						ActiveStream = TLSStream;
 					}
 					catch (System.Exception ex)
-					{
-						Console.WriteLine("TLS Error(s):");
-						Console.WriteLine(ex.ToString());
+					{						
+						Log(0, "TLS Error(s): {0}", ex.ToString());
 						throw new Exception("Connection failed due to TLS errors: " + ex.ToString());
 					}
 				}
@@ -90,6 +98,7 @@ namespace DXMPP
 				XElement RVal;
 				if (Documents.TryDequeue(out RVal))
 				{
+					Log(2, "Dequeued document: {0}", RVal.ToString());
 					return RVal;
 				}
 
@@ -136,7 +145,7 @@ namespace DXMPP
 					if (Mode == this.Mode)
 						return;
 
-					//Console.WriteLine ("Switching to read mode: " + Mode.ToString ());
+					Log(1, "Switching to read mode: " + Mode.ToString ());
 
 					if (Mode == ReadMode.XML)
 					{
@@ -177,11 +186,17 @@ namespace DXMPP
 
 						lock (IncomingData)
 						{
+							if (DebugLevel >= 2)
+							{
+								string PushData = Encoding.UTF8.GetString(DataToSend);
+								Log(2, "Push Data to XmlStream: {0}", PushData);
+							}
 							XMLStream.PushStringData(DataToSend);
 						}
 					}
-					catch
+					catch(Exception e)
 					{
+						Log(1, "OnDisconnect in PushData: {0}", e.ToString());
 						if (OnDisconnect == null)
 							OnDisconnect.Invoke();
 					}
@@ -209,12 +224,14 @@ namespace DXMPP
 							Console.WriteLine (NewData);
 							Console.WriteLine ("---");*/
 							IncomingData += NewData;
+							Log(2, "Enqueing incommingdata: {0}", NewData);
 						}
 
 						NewEvents.Enqueue(new Events(Events.EventType.GotData));
 					}
-					catch
+					catch(Exception e)
 					{
+						Log(1, "OnDisconnect in TextRead: {0}", e.ToString());
 						if (OnDisconnect == null)
 							OnDisconnect.Invoke();
 					}
@@ -235,8 +252,11 @@ namespace DXMPP
 				XElement RootNode = null;
 				XElement CurrentElement = null;
 
+				Log(2, "InnerXmlRead");
+
 				while (Reader.Read() && !RestartXMLReader)
 				{
+					Log(2, "InnerXmlRead: NodeType: {0}, LocalName: {1}", Reader.NodeType, Reader.LocalName);
 					switch (Reader.NodeType)
 					{
 						case XmlNodeType.Attribute:
@@ -280,6 +300,7 @@ namespace DXMPP
 								{
 									if (CurrentElement == RootNode)
 									{
+										Log(2, "Enqueing document: {0}", RootNode.ToString());
 										Documents.Enqueue(RootNode);
 										RootNode = CurrentElement = null;
 
@@ -296,6 +317,7 @@ namespace DXMPP
 
 								if (CurrentElement == RootNode)
 								{
+									Log(2, "Enqueing document: {0}", RootNode.ToString());
 									Documents.Enqueue(RootNode);
 									RootNode = CurrentElement = null;
 
@@ -351,6 +373,7 @@ namespace DXMPP
 					}
 					catch (Exception e)
 					{
+						Log(1, "Exception in blockingxmlread: {0}", e.ToString());
 						int breakhere = 1;
 						// No
 					}
@@ -440,6 +463,7 @@ namespace DXMPP
 			{
 				lock (IncomingData)
 				{
+					Log(2, "Dequeing incommingdata: {0}", IncomingData);
 					return IncomingData;
 				}
 			}
