@@ -96,7 +96,15 @@ namespace DXMPP
 				Client = null;
 			}
 
-            Client = new Network.AsyncTCPXMLClient (Hostname, Portnumber, ClientGotData, ClientDisconnected);
+            try
+            {
+                Client = new Network.AsyncTCPXMLClient (Hostname, Portnumber, ClientGotData, ClientDisconnected);
+            }
+            catch
+            {
+                ClientDisconnected();
+                return;
+            }
 			OpenXMPPStream ();
 
             if (MyJID.GetResource () == string.Empty)
