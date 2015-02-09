@@ -482,7 +482,7 @@ namespace DXMPP
 			string WhiteSpaceToSend;
 			void SendKeepAliveWhitespace(object State)
 			{
-				if (LastSentDataToSocket > DateTime.Now.AddSeconds(-KeepAliveTimerIntervalSeconds))
+                if (LastSentDataToSocket > DateTime.UtcNow.AddSeconds(-KeepAliveTimerIntervalSeconds))
 					return;
 
 				WriteTextToSocket(WhiteSpaceToSend);
@@ -521,7 +521,7 @@ namespace DXMPP
 					byte[] OutgoingBuffer = Encoding.UTF8.GetBytes(Data);
 					lock (ClientWriteLock)
 					{
-						LastSentDataToSocket = DateTime.Now;
+						LastSentDataToSocket = DateTime.UtcNow;
 						ActiveStream.Write(OutgoingBuffer, 0, OutgoingBuffer.Length);
 						ActiveStream.Flush();
 					}
