@@ -64,24 +64,38 @@ namespace DXMPP
 
 				return true;
 			}
+            bool IsConnectedViaTLS = false;
 
 			public void ConnectTLS(bool AllowSelfSignedCertificates)
-			{
-
-				TextRead();
+			{	//TextRead();
 				ClearRawTextData();
 				lock (Client)
 				{
+                    byte[] nullbuff;
+                    if (Client.Available > 0)
+                    {
+                        nullbuff = new byte[Client.Available];
+                        Client.GetStream().Read(nullbuff, 0, nullbuff.Length);
+                    }
+
 					RemoteCertificateValidationCallback CertValidationCallback =
 						new RemoteCertificateValidationCallback(ServerValidationCallback);
 
 
 					try
 					{
+                        Console.WriteLine("Connecting with TLS");
 						TLSStream = new SslStream(ActiveStream, true, CertValidationCallback);
 						TLSStream.WriteTimeout = SendTimeout;
 						TLSStream.AuthenticateAsClient(Hostname);
 						ActiveStream = TLSStream;
+                        if (Client.Available > 0)
+                        {
+                            nullbuff = new byte[Client.Available];
+                            Client.GetStream().Read(nullbuff, 0, nullbuff.Length);
+                        }
+                        IsConnectedViaTLS = true;
+                        Console.WriteLine("Connected with TLS");
 					}
 					catch (System.Exception ex)
 					{						
@@ -166,33 +180,42 @@ namespace DXMPP
 				lock (Client)
 				{
 					try
-					{
+					{                       
 						if (Client.Available == 0)
 							return;
 
-						int NrToGet = Client.Available;
+						int NrToGet = IsConnectedViaTLS ? 1024 : Client.Available;
 
-						byte[] IncomingBuffer = new byte[NrToGet];
+                        int NrGot = 0;
 
-						int NrGot = ActiveStream.Read(IncomingBuffer, 0, NrToGet);
-						byte[] DataToSend = null;
-						if (NrGot == NrToGet)
-							DataToSend = IncomingBuffer;
-						else
-						{
-							DataToSend = new byte[NrGot];
-							Buffer.BlockCopy(IncomingBuffer, 0, DataToSend, 0, NrGot);
-						}
+                        do{
+    						byte[] IncomingBuffer = new byte[NrToGet];
 
-						lock (IncomingData)
-						{
-							if (DebugLevel >= 2)
-							{
-								string PushData = Encoding.UTF8.GetString(DataToSend);
-								Log(2, "Push Data to XmlStream: {0}", PushData);
-							}
-							XMLStream.PushStringData(DataToSend);
-						}
+    						//int NrGot = ActiveStream.Read(IncomingBuffer, 0, NrToGet);
+                            NrGot = ActiveStream.Read(IncomingBuffer, 0, NrToGet);
+                            if(NrGot < 1)
+                                break;
+
+    						byte[] DataToSend = null;
+    						if (NrGot == NrToGet)
+    							DataToSend = IncomingBuffer;
+    						else
+    						{
+    							DataToSend = new byte[NrGot];
+    							Buffer.BlockCopy(IncomingBuffer, 0, DataToSend, 0, NrGot);
+    						}
+
+    						lock (IncomingData)
+    						{
+    							if (DebugLevel >= 2)
+    							{
+    								string PushData = Encoding.UTF8.GetString(DataToSend);
+    								Log(2, "Push Data to XmlStream: {0}", PushData);
+    							}
+    							XMLStream.PushStringData(DataToSend);
+    						}
+                        }
+                        while(NrGot == NrToGet && IsConnectedViaTLS);
 					}
 					catch(Exception e)
 					{
@@ -212,22 +235,40 @@ namespace DXMPP
 						if (Client.Available == 0)
 							return;
 
-						int NrToGet = Client.Available;
+                        int NrToGet = IsConnectedViaTLS ?  1024 : Client.Available;
+                        int NrGot = 0;
+                        do{
+                            //if(NrToGet > 0)
+    						byte[] IncomingBuffer = new byte[NrToGet];
 
-						byte[] IncomingBuffer = new byte[NrToGet];
+    						//int NrGot = ActiveStream.Read(IncomingBuffer, 0, NrToGet);
+                            NrGot = ActiveStream.Read(IncomingBuffer, 0, NrToGet);
+                            if(NrGot < 1)
+                                break;
 
-						int NrGot = ActiveStream.Read(IncomingBuffer, 0, NrToGet);
-						lock (IncomingData)
-						{
-							string NewData = Encoding.UTF8.GetString(IncomingBuffer, 0, NrGot);
-							/*Console.WriteLine ("+++");
-							Console.WriteLine (NewData);
-							Console.WriteLine ("---");*/
-							IncomingData += NewData;
-							Log(2, "Enqueing incommingdata: {0}", NewData);
-						}
+    						lock (IncomingData)
+    						{
+                                try
+                                {
+        							string NewData = Encoding.UTF8.GetString(IncomingBuffer, 0, NrGot);
+        							/*Console.WriteLine ("+++");
+        							Console.WriteLine (NewData);
+        							Console.WriteLine ("---");*/
+        							IncomingData += NewData;
+        							Log(2, "Adding incommingdata: {0}", NewData);
+                                }
+                                catch(System.Exception ex)
+                                {
+                                    Console.WriteLine("EXCEPTION: " + ex.ToString());
+                                }
+    						}
 
-						NewEvents.Enqueue(new Events(Events.EventType.GotData));
+                        }while (NrGot == NrToGet && IsConnectedViaTLS);
+
+                        if (OnData != null)
+                            OnData.Invoke();
+
+						//NewEvents.Enqueue(new Events(Events.EventType.GotData));
 					}
 					catch(Exception e)
 					{
@@ -511,27 +552,31 @@ namespace DXMPP
 
 			public void WriteTextToSocket(string Data)
 			{
-				/*
-				Console.WriteLine (">>>");
-				Console.WriteLine (Data);
-				Console.WriteLine ("<<<");*/
 
-				try
-				{
-					byte[] OutgoingBuffer = Encoding.UTF8.GetBytes(Data);
-					lock (ClientWriteLock)
-					{
-						LastSentDataToSocket = DateTime.UtcNow;
-						ActiveStream.Write(OutgoingBuffer, 0, OutgoingBuffer.Length);
-						ActiveStream.Flush();
-					}
-				}
-				catch (System.Exception ex)
-				{
-					Console.WriteLine("Write text to socket failed: " + ex.ToString());
-					if (OnDisconnect != null)
-						OnDisconnect.Invoke();
-				}
+                lock (Client)
+                {
+				/*
+                    Console.WriteLine(">>>");
+                    Console.WriteLine(Data);
+                    Console.WriteLine("<<<");*/
+
+                    try
+                    {
+                        byte[] OutgoingBuffer = Encoding.UTF8.GetBytes(Data);
+                        lock (ClientWriteLock)
+                        {
+                            LastSentDataToSocket = DateTime.UtcNow;
+                            ActiveStream.Write(OutgoingBuffer, 0, OutgoingBuffer.Length);
+                            ActiveStream.Flush();
+                        }
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Console.WriteLine("Write text to socket failed: " + ex.ToString());
+                        if (OnDisconnect != null)
+                            OnDisconnect.Invoke();
+                    }
+                }
 			}
 
 			public AsyncTCPXMLClient(string Hostname, int Portnumber, OnDataCallback OnData, OnDisconnectCallback OnDisconnect)

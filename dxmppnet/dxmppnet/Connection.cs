@@ -84,8 +84,10 @@ namespace DXMPP
 			}
 			catch {
 				Console.WriteLine ("Failed to connect with TLS");
+                CurrentAuthenticationState = AuthenticationState.None;
 				CurrentConnectionState = ConnectionState.ErrorUnknown;
-				BroadcastConnectionState (CallbackConnectionState.ErrorUnknown);
+                Reset();
+                BroadcastConnectionState (CallbackConnectionState.ErrorUnknown);
 			}
 		}
 
