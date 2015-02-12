@@ -43,6 +43,9 @@ namespace DXMPP
 					Console.WriteLine(Message, FormatObjs);
 			}
 
+            // bigger than max record length for SSL/TLS
+            byte[] ReceiveBuffer = new byte[16384];
+
 			private static bool ServerValidationCallback(object Sender,
 				X509Certificate Certificate, X509Chain Chain, SslPolicyErrors PolicyErrors)
 			{
@@ -184,26 +187,21 @@ namespace DXMPP
 						if (Client.Available == 0)
 							return;
 
-						int NrToGet = IsConnectedViaTLS ? 1024 : Client.Available;
+                        int NrToGet = IsConnectedViaTLS ? ReceiveBuffer.Length : Client.Available;
 
                         int NrGot = 0;
 
                         do{
-    						byte[] IncomingBuffer = new byte[NrToGet];
+    						//byte[] IncomingBuffer = new byte[NrToGet];
 
     						//int NrGot = ActiveStream.Read(IncomingBuffer, 0, NrToGet);
-                            NrGot = ActiveStream.Read(IncomingBuffer, 0, NrToGet);
+                            NrGot = ActiveStream.Read(ReceiveBuffer, 0, NrToGet);
                             if(NrGot < 1)
                                 break;
 
-    						byte[] DataToSend = null;
-    						if (NrGot == NrToGet)
-    							DataToSend = IncomingBuffer;
-    						else
-    						{
-    							DataToSend = new byte[NrGot];
-    							Buffer.BlockCopy(IncomingBuffer, 0, DataToSend, 0, NrGot);
-    						}
+						
+							byte[] DataToSend = new byte[NrGot];
+                            Buffer.BlockCopy(ReceiveBuffer, 0, DataToSend, 0, NrGot);    						
 
     						lock (IncomingData)
     						{
@@ -235,14 +233,10 @@ namespace DXMPP
 						if (Client.Available == 0)
 							return;
 
-                        int NrToGet = IsConnectedViaTLS ?  1024 : Client.Available;
+                        int NrToGet = IsConnectedViaTLS ?  ReceiveBuffer.Length : Client.Available;
                         int NrGot = 0;
                         do{
-                            //if(NrToGet > 0)
-    						byte[] IncomingBuffer = new byte[NrToGet];
-
-    						//int NrGot = ActiveStream.Read(IncomingBuffer, 0, NrToGet);
-                            NrGot = ActiveStream.Read(IncomingBuffer, 0, NrToGet);
+                            NrGot = ActiveStream.Read(ReceiveBuffer, 0, NrToGet);
                             if(NrGot < 1)
                                 break;
 
@@ -250,7 +244,7 @@ namespace DXMPP
     						{
                                 try
                                 {
-        							string NewData = Encoding.UTF8.GetString(IncomingBuffer, 0, NrGot);
+                                    string NewData = Encoding.UTF8.GetString(ReceiveBuffer, 0, NrGot);
         							/*Console.WriteLine ("+++");
         							Console.WriteLine (NewData);
         							Console.WriteLine ("---");*/
