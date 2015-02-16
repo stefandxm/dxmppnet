@@ -166,8 +166,8 @@ namespace DXMPP
 
 					if (Mode == ReadMode.XML)
 					{
-						RestartXMLReader = true;
 						XMLStream.ClearStart();
+                        Log(3, "XMLStream Cleared and started");
 					}
 
 					this.Mode = Mode;
@@ -188,13 +188,9 @@ namespace DXMPP
 							return;
 
                         int NrToGet = IsConnectedViaTLS ? ReceiveBuffer.Length : Client.Available;
-
                         int NrGot = 0;
 
                         do{
-    						//byte[] IncomingBuffer = new byte[NrToGet];
-
-    						//int NrGot = ActiveStream.Read(IncomingBuffer, 0, NrToGet);
                             NrGot = ActiveStream.Read(ReceiveBuffer, 0, NrToGet);
                             if(NrGot < 1)
                                 break;
@@ -210,7 +206,7 @@ namespace DXMPP
     								string PushData = Encoding.UTF8.GetString(DataToSend);
     								Log(2, "Push Data to XmlStream: {0}", PushData);
     							}
-    							XMLStream.PushStringData(DataToSend);
+    							XMLStream.PushData(DataToSend);
     						}
                         }
                         while(NrGot == NrToGet && IsConnectedViaTLS);
@@ -272,121 +268,124 @@ namespace DXMPP
 					}
 				}
 			}
-			bool RestartXMLReader = false;
-
+                
 			void InnerXMLRead()
 			{
-				if (!XMLStream.HasData)
-					return;
 
-				XmlReaderSettings Settings = new XmlReaderSettings();
-				Settings.ValidationType = ValidationType.None;
-				Settings.ConformanceLevel = ConformanceLevel.Fragment;
-				XmlReader Reader = XmlReader.Create(XMLStream, Settings);
+                if (!XMLStream.HasData)
+                    return;
 
-				XElement RootNode = null;
-				XElement CurrentElement = null;
+                Log(3, "Innerxml read has data");
 
-				Log(2, "InnerXmlRead");
+                XmlReaderSettings Settings = new XmlReaderSettings();
+                Settings.ValidationType = ValidationType.None;
+                Settings.ConformanceLevel = ConformanceLevel.Fragment;
+                XmlReader Reader = XmlReader.Create(XMLStream, Settings);
 
-				while (Reader.Read() && !RestartXMLReader)
-				{
-					Log(2, "InnerXmlRead: NodeType: {0}, LocalName: {1}", Reader.NodeType, Reader.LocalName);
-					switch (Reader.NodeType)
-					{
-						case XmlNodeType.Attribute:
-							break;
-						case XmlNodeType.CDATA:
-							{
-								if (CurrentElement == null)
-									continue;
 
-								XCData PureData = new XCData(Reader.Value);
-								CurrentElement.Add(PureData);
-							}
-							break;
-						case XmlNodeType.Comment:
-							break;
-						case XmlNodeType.Document:
-							break;
-						case XmlNodeType.DocumentFragment:
-							break;
-						case XmlNodeType.DocumentType:
-							break;
-						case XmlNodeType.Element:
-							{
-								bool SelfClosing = Reader.IsEmptyElement;
+                XElement RootNode = null;
+                XElement CurrentElement = null;
 
-								XElement NewElement = new XElement(Reader.LocalName);
-								LoadAttributesFromReaderToElement(Reader, NewElement);
+                Log(2, "InnerXmlRead");
 
-								if (RootNode == null)
-								{
-									RootNode = NewElement;
+                while (Reader.Read())
+                {
+                    Log(2, "InnerXmlRead: NodeType: {0}, LocalName: {1}", Reader.NodeType, Reader.LocalName);
+                    switch (Reader.NodeType)
+                    {
+                        case XmlNodeType.Attribute:
+                            break;
+                        case XmlNodeType.CDATA:
+                            {
+                                if (CurrentElement == null)
+                                    continue;
+
+                                XCData PureData = new XCData(Reader.Value);
+                                CurrentElement.Add(PureData);
+                            }
+                            break;
+                        case XmlNodeType.Comment:
+                            break;
+                        case XmlNodeType.Document:
+                            break;
+                        case XmlNodeType.DocumentFragment:
+                            break;
+                        case XmlNodeType.DocumentType:
+                            break;
+                        case XmlNodeType.Element:
+                            {
+                                bool SelfClosing = Reader.IsEmptyElement;
+
+                                XElement NewElement = new XElement(Reader.LocalName);
+                                LoadAttributesFromReaderToElement(Reader, NewElement);
+
+                                if (RootNode == null)
+                                {
+                                    RootNode = NewElement;
                                     CurrentElement = RootNode;
 
-									if (SelfClosing)
-									{
-										Log(2, "Enqueing document: {0}", RootNode.ToString());
-										Documents.Enqueue(RootNode);
-										RootNode = CurrentElement = null;
-										NewEvents.Enqueue(new Events(Events.EventType.GotData));
-									}
-								}
-								else
-								{
-									CurrentElement.Add(NewElement);
-									if (!SelfClosing)
-										CurrentElement = NewElement;
-								}								
+                                    if (SelfClosing)
+                                    {
+                                        Log(2, "Enqueing document: {0}", RootNode.ToString());
+                                        Documents.Enqueue(RootNode);
+                                        RootNode = CurrentElement = null;
+                                        NewEvents.Enqueue(new Events(Events.EventType.GotData));
+                                    }
+                                }
+                                else
+                                {
+                                    CurrentElement.Add(NewElement);
+                                    if (!SelfClosing)
+                                        CurrentElement = NewElement;
+                                }								
 
-								break;
-							}
-						case XmlNodeType.EndElement:
-							{
-								if (CurrentElement == null)
-									continue;
+                                break;
+                            }
+                        case XmlNodeType.EndElement:
+                            {
+                                if (CurrentElement == null)
+                                    continue;
 
-								if (CurrentElement == RootNode)
-								{
-									Log(2, "Enqueing document: {0}", RootNode.ToString());
-									Documents.Enqueue(RootNode);
-									RootNode = CurrentElement = null;
+                                if (CurrentElement == RootNode)
+                                {
+                                    Log(2, "Enqueing document: {0}", RootNode.ToString());
+                                    Documents.Enqueue(RootNode);
+                                    RootNode = CurrentElement = null;
 
-									NewEvents.Enqueue(new Events(Events.EventType.GotData));
-								}
-								else
-									CurrentElement = CurrentElement.Parent;
-							}
-							break;
-						case XmlNodeType.EndEntity:
-							break;
-						case XmlNodeType.Entity:
-							break;
-						case XmlNodeType.EntityReference:
-							break;
-						case XmlNodeType.None:
-							break;
-						case XmlNodeType.ProcessingInstruction:
-							break;
-						case XmlNodeType.SignificantWhitespace:
-							break;
-						case XmlNodeType.Text:
-							{
-								if (CurrentElement == null)
-									continue;
+                                    NewEvents.Enqueue(new Events(Events.EventType.GotData));
+                                }
+                                else
+                                    CurrentElement = CurrentElement.Parent;
+                            }
+                            break;
+                        case XmlNodeType.EndEntity:
+                            break;
+                        case XmlNodeType.Entity:
+                            break;
+                        case XmlNodeType.EntityReference:
+                            break;
+                        case XmlNodeType.None:
+                            break;
+                        case XmlNodeType.ProcessingInstruction:
+                            break;
+                        case XmlNodeType.SignificantWhitespace:
+                            break;
+                        case XmlNodeType.Text:
+                            {
+                                if (CurrentElement == null)
+                                    continue;
 
-								XText PureText = new XText(Reader.Value);
-								CurrentElement.Add(PureText);
-							}
-							break;
-						case XmlNodeType.Whitespace:
-							break;
-						case XmlNodeType.XmlDeclaration:
-							break;
+                                XText PureText = new XText(Reader.Value);
+                                CurrentElement.Add(PureText);
+                            }
+                            break;
+                        case XmlNodeType.Whitespace:
+                            break;
+                        case XmlNodeType.XmlDeclaration:
+                            break;
 
-					}
-				}
+                    }
+                }
 			}
 
 			void BlockingXMLRead()
@@ -400,13 +399,11 @@ namespace DXMPP
 
 					try
 					{
-						RestartXMLReader = false;
 						InnerXMLRead();
 					}
 					catch (Exception e)
 					{
 						Log(1, "Exception in blockingxmlread: {0}", e.ToString());
-						int breakhere = 1;
 						// No
 					}
 

@@ -15,9 +15,9 @@ namespace DXMPP.Network
 		}
 		public override int Read(byte[] buffer, int offset, int count)
 		{
-			int i = 0;
+            int NrBytesRead = 0;
 			bool Sleep = false;
-			for ( /* no */ ; i < count && !Stopped;)
+            while( !Stopped && NrBytesRead < count  )
 			{
 				if (Sleep)
 				{
@@ -28,7 +28,7 @@ namespace DXMPP.Network
 				lock (Data)
 				{
 					LinkedListNode<byte[]> SmallData = Data.First;
-					if (i == 0 && SmallData == null)
+					if (NrBytesRead == 0 && SmallData == null)
 					{
 						Sleep = true;
 						continue;
@@ -39,9 +39,9 @@ namespace DXMPP.Network
 
 					Data.RemoveFirst();
 
-					int BytesToCopyFromThisSegment = Math.Min(SmallData.Value.Length, count - i);
-					Buffer.BlockCopy(SmallData.Value, 0, buffer, offset + i, BytesToCopyFromThisSegment);
-					i += BytesToCopyFromThisSegment;
+					int BytesToCopyFromThisSegment = Math.Min(SmallData.Value.Length, count - NrBytesRead);
+					Buffer.BlockCopy(SmallData.Value, 0, buffer, offset + NrBytesRead, BytesToCopyFromThisSegment);
+					NrBytesRead += BytesToCopyFromThisSegment;
 
 					if (BytesToCopyFromThisSegment < SmallData.Value.Length)
 					{
@@ -51,14 +51,12 @@ namespace DXMPP.Network
 						Data.AddFirst(RemainingBytesFromThisSegment);
 					}
 
-					if (!HasData)
-						break;
+                    if (!HasData)
+                        break;
 				}
 			}
-			//Console.WriteLine("Reading. Requested offset: {0}, count: {1}, returned: {2}, text: {3}", 
-			//	offset, count, i, System.Text.Encoding.UTF8.GetString(buffer));
 
-			return i;
+			return NrBytesRead;
 
 
 		}
@@ -74,6 +72,7 @@ namespace DXMPP.Network
 
 		public override void Write(byte[] buffer, int offset, int count)
 		{
+            throw new InvalidOperationException();
 		}
 
 		public override bool CanRead
@@ -121,8 +120,15 @@ namespace DXMPP.Network
 		{
 			get
 			{
-				lock (Data)
-					return (Data.First != null);
+                lock (Data)
+                {
+                    bool RVal = (Data.First != null);
+/*                    if (RVal)
+                        Console.WriteLine("{0}Hasdata!", Environment.NewLine);
+                    else
+                        Console.WriteLine("No data");*/
+                    return RVal;
+                }
 			}
 		}
 
@@ -131,19 +137,27 @@ namespace DXMPP.Network
 		public void Stop()
 		{
 			Stopped = true;
+            lock (Data)
+            {
+                // Do nothing: Just make sure we are relased
+            }
 		}
 
 		public void ClearStart()
 		{
-			lock (Data)
-				Data.Clear();
-			Stopped = false;
+            lock (Data)
+            {
+                Data.Clear();
+                Stopped = false;
+            }
 		}
 
-		public void PushStringData(byte[] NewData)
+		public void PushData(byte[] NewData)
 		{
-			lock (Data)
-				Data.AddLast(NewData);
+            lock (Data)
+            {
+                Data.AddLast(NewData);
+            }
 		}
 	}
 }
