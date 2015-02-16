@@ -188,10 +188,11 @@ namespace DXMPP
 							return;
 
                         int NrToGet = IsConnectedViaTLS ? ReceiveBuffer.Length : Client.Available;
+                        NrToGet = Math.Min(NrToGet, ReceiveBuffer.Length);
                         int NrGot = 0;
 
                         do{
-                            NrGot = ActiveStream.Read(ReceiveBuffer, 0, NrToGet);
+                            NrGot = Client.GetStream().Read(ReceiveBuffer, 0, NrToGet);
                             if(NrGot < 1)
                                 break;
 
@@ -230,9 +231,10 @@ namespace DXMPP
 							return;
 
                         int NrToGet = IsConnectedViaTLS ?  ReceiveBuffer.Length : Client.Available;
+                        NrToGet = Math.Min(NrToGet, ReceiveBuffer.Length);
                         int NrGot = 0;
                         do{
-                            NrGot = ActiveStream.Read(ReceiveBuffer, 0, NrToGet);
+                            NrGot = Client.GetStream().Read(ReceiveBuffer, 0, NrToGet);
                             if(NrGot < 1)
                                 break;
 
