@@ -37,7 +37,7 @@ namespace DXMPP
 
 		public override string ToString()
 		{
-			return Message.ToString ();
+			return Message.ToString ( SaveOptions.DisableFormatting);
 		}
 
 		public void EnforceAttributes(JID From)
