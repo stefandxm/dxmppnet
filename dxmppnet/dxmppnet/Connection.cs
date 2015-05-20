@@ -97,7 +97,7 @@ namespace DXMPP
 				Client.Dispose ();
 				Client = null;
 			}
-
+            BroadcastConnectionState(CallbackConnectionState.Connecting);
             try
             {
                 Client = new Network.AsyncTCPXMLClient (Hostname, Portnumber, ClientGotData, ClientDisconnected);
