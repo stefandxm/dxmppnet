@@ -24,18 +24,61 @@ namespace DXMPP
     {
         internal class AsyncTCPXMLClient : IDisposable
         {
-
             int DebugLevel = 0;
 
-            string Hostname;
-            int Portnumber;
-            TcpClient Client;
-            SslStream TLSStream;
-            Stream ActiveStream;
-            Timer KeepAliveTimer;
-            MojsStream XMLStream;
+            private readonly string Hostname;
+            private readonly int Portnumber;
+            private readonly TcpClient Client;
+            private SslStream TLSStream;
+            private Stream ActiveStream;
+            private Timer KeepAliveTimer;
+            private readonly MojsStream XMLStream;
 
             const int SendTimeout = 20000;
+
+            volatile bool KillIO = false;
+            volatile bool KillXMLParser = false;
+            volatile bool KillEvents = false;
+
+            private readonly Thread IOThread;
+            private readonly Thread ParseXMLThread;
+            private readonly Thread EventsThread;
+
+
+            // bigger than max record length for SSL/TLS
+            byte[] ReceiveBuffer = new byte[16384];
+
+            bool IsConnectedViaTLS = false;
+
+
+            private readonly ConcurrentQueue<XElement> Documents = new ConcurrentQueue<XElement>();
+            public delegate void OnDataCallback();
+            private readonly OnDataCallback OnData;
+
+            private int KeepAliveTimerIntervalSeconds;
+            private string WhiteSpaceToSend;
+
+
+            private readonly System.Collections.Concurrent.ConcurrentQueue<Events> NewEvents = new System.Collections.Concurrent.ConcurrentQueue<Events>();
+
+            public delegate void OnDisconnectCallback();
+            private OnDisconnectCallback OnDisconnect;
+
+            string IncomingData = string.Empty;
+
+            ReadMode Mode;
+
+            DateTime LastSentDataToSocket;
+
+            private readonly object ClientWriteLock = new object();
+
+            public readonly AtomicLongCounter TotalDataSent = new AtomicLongCounter();
+            public readonly AtomicLongCounter TotalDataReceivedInXmlMode = new AtomicLongCounter();
+            public readonly AtomicLongCounter TotalDataReceivedInTextMode = new AtomicLongCounter();
+            public readonly AtomicLongCounter TotalDataReceivedForTlsConnection = new AtomicLongCounter();
+            public readonly AtomicLongCounter TotalXmlDocumentsEnqueueud = new AtomicLongCounter();
+            public readonly AtomicLongCounter TotalXmlDocumentsDequeued = new AtomicLongCounter();
+
 
             private void Log(int Level, string Message, params object[] FormatObjs)
             {
@@ -43,8 +86,6 @@ namespace DXMPP
                     Console.WriteLine(Message, FormatObjs);
             }
 
-            // bigger than max record length for SSL/TLS
-            byte[] ReceiveBuffer = new byte[16384];
 
             private static bool ServerValidationCallback(object Sender,
                 X509Certificate Certificate, X509Chain Chain, SslPolicyErrors PolicyErrors)
@@ -67,7 +108,6 @@ namespace DXMPP
 
                 return true;
             }
-            bool IsConnectedViaTLS = false;
 
             public void ConnectTLS(bool AllowSelfSignedCertificates)
             {   //TextRead();
@@ -78,7 +118,8 @@ namespace DXMPP
                     if (Client.Available > 0)
                     {
                         nullbuff = new byte[Client.Available];
-                        Client.GetStream().Read(nullbuff, 0, nullbuff.Length);
+                        int BytesRead = Client.GetStream().Read(nullbuff, 0, nullbuff.Length);
+                        TotalDataReceivedForTlsConnection.Add(BytesRead);
                     }
 
                     RemoteCertificateValidationCallback CertValidationCallback =
@@ -95,7 +136,8 @@ namespace DXMPP
                         if (Client.Available > 0)
                         {
                             nullbuff = new byte[Client.Available];
-                            Client.GetStream().Read(nullbuff, 0, nullbuff.Length);
+                            int BytesRead = Client.GetStream().Read(nullbuff, 0, nullbuff.Length);
+                            TotalDataReceivedForTlsConnection.Add(BytesRead);
                         }
                         IsConnectedViaTLS = true;
                         Console.WriteLine("Connected with TLS");
@@ -109,12 +151,12 @@ namespace DXMPP
 
             }
 
-            ConcurrentQueue<XElement> Documents = new ConcurrentQueue<XElement>();
             public XElement FetchXMLDocument()
             {
                 XElement RVal;
                 if (Documents.TryDequeue(out RVal))
                 {
+                    TotalXmlDocumentsDequeued.Inc1();
                     if (DebugLevel >= 2)
                         Log(2, "Dequeued document: {0}", RVal.ToString());
                     return RVal;
@@ -123,8 +165,6 @@ namespace DXMPP
                 return null;
             }
 
-            public delegate void OnDataCallback();
-            OnDataCallback OnData;
 
             class Events
             {
@@ -141,20 +181,11 @@ namespace DXMPP
                 public EventType What;
             }
 
-            System.Collections.Concurrent.ConcurrentQueue<Events> NewEvents = new System.Collections.Concurrent.ConcurrentQueue<Events>();
-
-            public delegate void OnDisconnectCallback();
-            OnDisconnectCallback OnDisconnect;
-
-            string IncomingData = string.Empty;
-
             public enum ReadMode
             {
                 Text,
                 XML
             }
-
-            ReadMode Mode;
 
             public void SetReadMode(ReadMode Mode)
             {
@@ -198,6 +229,7 @@ namespace DXMPP
                             NrGot = Client.GetStream().Read(ReceiveBuffer, 0, NrToGet);
                             if (NrGot < 1)
                                 break;
+                            TotalDataReceivedInXmlMode.Add(NrGot);
 
 
                             byte[] DataToSend = new byte[NrGot];
@@ -244,15 +276,13 @@ namespace DXMPP
                             NrGot = Client.GetStream().Read(ReceiveBuffer, 0, NrToGet);
                             if (NrGot < 1)
                                 break;
+                            TotalDataReceivedInTextMode.Add(NrGot);
 
                             lock (IncomingData)
                             {
                                 try
                                 {
                                     string NewData = Encoding.UTF8.GetString(ReceiveBuffer, 0, NrGot);
-                                    /*Console.WriteLine ("+++");
-        							Console.WriteLine (NewData);
-        							Console.WriteLine ("---");*/
                                     IncomingData += NewData;
                                     Log(2, "Adding incommingdata: {0}", NewData);
                                 }
@@ -362,6 +392,7 @@ namespace DXMPP
                                 {
                                     if (DebugLevel >= 2)
                                         Log(2, "Enqueing document: {0}", RootNode.ToString());
+                                    TotalXmlDocumentsEnqueueud.Inc1();
                                     Documents.Enqueue(RootNode);
                                     RootNode = CurrentElement = null;
 
@@ -496,13 +527,7 @@ namespace DXMPP
                     }
                 }
             }
-            volatile bool KillIO = false;
-            volatile bool KillXMLParser = false;
-            volatile bool KillEvents = false;
 
-            Thread IOThread;
-            Thread ParseXMLThread;
-            Thread EventsThread;
 
             public string GetRawTextData()
             {
@@ -521,13 +546,7 @@ namespace DXMPP
                 }
             }
 
-            void SetRawTextDataUnlocked(string Data)
-            {
-                IncomingData = Data;
-            }
 
-            int KeepAliveTimerIntervalSeconds;
-            string WhiteSpaceToSend;
             void SendKeepAliveWhitespace(object State)
             {
                 if (LastSentDataToSocket > DateTime.UtcNow.AddSeconds(-KeepAliveTimerIntervalSeconds))
@@ -553,22 +572,15 @@ namespace DXMPP
                 KeepAliveTimerIntervalSeconds = TimeoutSeconds;
             }
 
-            DateTime LastSentDataToSocket;
-
-            object ClientWriteLock = new object();
 
             public void WriteTextToSocket(string Data)
             {
                 byte[] OutgoingBuffer = Encoding.UTF8.GetBytes(Data);
                 lock (Client)
                 {
-                    /*
-                        Console.WriteLine(">>>");
-                        Console.WriteLine(Data);
-                        Console.WriteLine("<<<");*/
-
                     try
                     {
+                        TotalDataSent.Add(OutgoingBuffer.Length);
                         lock (ClientWriteLock)
                         {
                             LastSentDataToSocket = DateTime.UtcNow;
@@ -636,7 +648,6 @@ namespace DXMPP
                 if (Client != null)
                 {
                     Client.Close();
-                    Client = null;
                 }
             }
 
