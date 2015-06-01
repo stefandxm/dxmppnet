@@ -226,7 +226,7 @@ namespace DXMPP
 
                         do
                         {
-                            NrGot = Client.GetStream().Read(ReceiveBuffer, 0, NrToGet);
+                            NrGot = ActiveStream.Read(ReceiveBuffer, 0, NrToGet);
                             if (NrGot < 1)
                                 break;
                             TotalDataReceivedInXmlMode.Add(NrGot);
@@ -273,7 +273,7 @@ namespace DXMPP
                         int NrGot = 0;
                         do
                         {
-                            NrGot = Client.GetStream().Read(ReceiveBuffer, 0, NrToGet);
+                            NrGot = ActiveStream.Read(ReceiveBuffer, 0, NrToGet);
                             if (NrGot < 1)
                                 break;
                             TotalDataReceivedInTextMode.Add(NrGot);
