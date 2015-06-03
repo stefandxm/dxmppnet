@@ -187,6 +187,13 @@ namespace DXMPP
         // this is ok
         void CheckStreamForFeatures()
         {
+            FeaturesSASL_DigestMD5 = false;
+            FeaturesSASL_CramMD5 = false;
+            FeaturesSASL_ScramSHA1 = false;
+            FeaturesSASL_Plain = false;
+            FeaturesStartTLS = false;
+
+
             string str = Client.GetRawTextData();
             string EndOfFeatures = "</stream:features>";
             int IndexOfEndOfFeatures = str.IndexOf(EndOfFeatures);
