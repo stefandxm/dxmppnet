@@ -8,60 +8,186 @@ namespace DXMPP
 	{
 		public enum StanzaType
 		{
-			Chat,
-			Error
+			IQ,
+			Message,
+			Presence
 		}
 
-		public XElement Message;
+		public XElement Payload;
 		public JID To;
 		public JID From;
 		public string ID;
 		public StanzaType Type;
 
-		public Stanza(XElement Message)
+		public Stanza(XElement Payload)
 		{
-			this.Message = Message;
-			To = new JID (Message.Attribute ("to").Value);
-			From = new JID (Message.Attribute ("from").Value);
-			this.ID = Message.Attribute ("id").Value;
+			this.Payload = Payload;
 
+			if(Payload.Attribute("to") != null )
+				To = new JID(Payload.Attribute("to").Value);
+
+			if(Payload.Attribute("from") != null)
+				From = new JID(Payload.Attribute("from").Value);
+			
+			this.ID = Payload.Attribute("id").Value;
+		}
+
+		public override string ToString()
+		{
+			return Payload.ToString(SaveOptions.DisableFormatting);
+		}
+
+		public virtual void EnforceAttributes(JID From)
+		{			
+			if(To != null)
+				Payload.SetAttributeValue("to", To.ToString());
+
+			if(From != null)
+				Payload.SetAttributeValue("from", From.ToString());
+			
+			Payload.SetAttributeValue("id", ID);
+		}
+
+		public Stanza(StanzaType Type)
+		{
+			this.Type = Type;
+
+			switch (this.Type)
+			{
+				case StanzaType.IQ:
+					Payload = new XElement("iq");
+					break;
+				case StanzaType.Message:
+					Payload = new XElement("message");
+					break;
+			}
+			ID = Guid.NewGuid().ToString();
+		}
+	}
+
+	public class StanzaMessage : Stanza
+	{
+		public enum StanzaMessageType
+		{
+			Chat,
+			Error
+		}
+
+		public StanzaMessageType MessageType;
+
+		public StanzaMessage(XElement Message)
+			: base(Message)
+		{
 			switch (Message.Attribute ("type").Value) {
 			case "error":
-				this.Type = StanzaType.Error;
+				this.MessageType = StanzaMessageType.Error;
 				break;
 			case "chat":
-				this.Type = StanzaType.Chat;
+				this.MessageType = StanzaMessageType.Chat;
 				break;
 			}
 		}
 
 		public override string ToString()
 		{
-			return Message.ToString ( SaveOptions.DisableFormatting);
+			return base.ToString();
 		}
 
-		public void EnforceAttributes(JID From)
+		public override void EnforceAttributes(JID From)
 		{
-			switch (Type) {
-			case StanzaType.Chat:
-				Message.SetAttributeValue ("type", "chat");
+			base.EnforceAttributes(From);
+
+			switch (MessageType) {
+			case StanzaMessageType.Chat:
+				Payload.SetAttributeValue ("type", "chat");
 				break;
-			case StanzaType.Error:
-				Message.SetAttributeValue ("type", "error");
+			case StanzaMessageType.Error:
+				Payload.SetAttributeValue ("type", "error");
 				break;
 			}
 
-			Message.SetAttributeValue ("to", To.ToString ());
-			Message.SetAttributeValue ("from", From.ToString ());
-			Message.SetAttributeValue ("id", ID);
 		}
 
-		public Stanza ()
+		public StanzaMessage ()
+			: base(StanzaType.Message)
 		{
-			this.Type = StanzaType.Chat;
+			this.MessageType = StanzaMessageType.Chat;
+		}
+	}
 
-			Message = new XElement ("message");
-			ID = Guid.NewGuid ().ToString();
+
+	public class StanzaIQ : Stanza
+	{
+		public enum StanzaIQType
+		{
+			Get,
+			Set,
+			Result,
+			Error
+		}
+
+		public StanzaIQType IQType;
+
+		public StanzaIQ(XElement IQ)
+			: base(IQ)
+		{
+		}
+
+		public override string ToString()
+		{
+			return base.ToString();
+		}
+
+		public override void EnforceAttributes(JID From)
+		{
+			base.EnforceAttributes(From);
+
+			switch (IQType)
+			{
+				case StanzaIQType.Get:
+					Payload.SetAttributeValue("type", "get");
+					break;
+				case StanzaIQType.Set:
+					Payload.SetAttributeValue("type", "set");
+					break;
+				case StanzaIQType.Result:
+					Payload.SetAttributeValue("type", "result");
+					break;
+				case StanzaIQType.Error:
+					Payload.SetAttributeValue("type", "error");
+					break;
+			}
+
+		}
+
+		public StanzaIQ(StanzaIQType Type)
+			: base(StanzaType.IQ)
+		{
+			this.IQType = Type;
+		}
+	}
+
+	public class StanzaPresence : Stanza
+	{
+		public StanzaPresence(XElement Presence)
+			: base(Presence)
+		{
+		}
+
+		public override string ToString()
+		{
+			return base.ToString();
+		}
+
+		public new void EnforceAttributes(JID From)
+		{
+			base.EnforceAttributes(From);
+
+		}
+
+		public StanzaPresence()
+			: base(StanzaType.Presence)
+		{
 		}
 	}
 }

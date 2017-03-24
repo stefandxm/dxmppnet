@@ -90,6 +90,7 @@ namespace DXMPP
             private static bool ServerValidationCallback(object Sender,
                 X509Certificate Certificate, X509Chain Chain, SslPolicyErrors PolicyErrors)
             {
+				return true; // DO NOT COMMIT
                 switch (PolicyErrors)
                 {
                     case SslPolicyErrors.RemoteCertificateNameMismatch:

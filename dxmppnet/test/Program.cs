@@ -29,7 +29,7 @@ namespace Test
 				Connection = new DXMPP.Connection("deusexmachinae.se", 5222, 
 						new DXMPP.JID("dxmpp@users/net"), "dxmpp");
 
-				Connection.OnStanza += HandleOnStanzaCallback;
+				Connection.OnStanzaMessage += HandleOnStanzaCallback;
                 Connection.OnConnectionStateChanged += HandleOnConnectionStateChangedCallback;
 				Connection.Connect();
 			}
@@ -40,16 +40,16 @@ namespace Test
             }
                            
 
-			void HandleOnStanzaCallback (DXMPP.Stanza Data)
+			void HandleOnStanzaCallback (DXMPP.StanzaMessage Data)
 			{
-				var BodyElement = Data.Message.XPathSelectElement ("//body");
+				var BodyElement = Data.Payload.XPathSelectElement ("//body");
 				if (BodyElement == null)
 					return;
 
-				DXMPP.Stanza EchoMessage = new DXMPP.Stanza ();
+				DXMPP.StanzaMessage EchoMessage = new DXMPP.StanzaMessage ();
 				EchoMessage.To = Data.From;
 				EchoMessage.From = Data.To;
-				EchoMessage.Message.Add (BodyElement);
+				EchoMessage.Payload.Add (BodyElement);
 				Connection.SendStanza (EchoMessage);
 			}
 		}

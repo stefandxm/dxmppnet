@@ -402,16 +402,21 @@ namespace DXMPP
         }
         void CheckStreamForStanza(XElement Doc)
         {
-            if (OnStanza == null)
-                return;
-
+            
             XElement message = Doc.Name.LocalName == "message" ? Doc : null;
+			XElement iq = Doc.Name.LocalName == "iq" ? Doc : null;
 
-            if (message == null)
-                return;
+			if (message != null && OnStanzaMessage != null)
+			{
+				StanzaMessage NewStanza = new StanzaMessage(message);
+				OnStanzaMessage.Invoke(NewStanza);
+			}
 
-            Stanza NewStanza = new Stanza(message);
-            OnStanza.Invoke(NewStanza);
+			if (iq != null && OnStanzaIQ != null)
+			{
+				StanzaIQ NewStanza = new StanzaIQ(iq);
+				OnStanzaIQ.Invoke(NewStanza);
+			}
         }
         void CheckForPresence(XElement Doc)
         {
@@ -574,11 +579,16 @@ namespace DXMPP
                 throw new InvalidOperationException("Trying tro send stanza disconnected");
 
             Data.EnforceAttributes(MyJID);
+			//Console.WriteLine("Send stanza {0}", Data);
             Client.WriteTextToSocket(Data.ToString());
         }
 
-        public delegate void OnStanzaCallback(Stanza Data);
-        public OnStanzaCallback OnStanza;
+        public delegate void OnStanzaMessageCallback(StanzaMessage Data);
+        public OnStanzaMessageCallback OnStanzaMessage;
+
+		public delegate void OnStanzaIQCallback(StanzaIQ Data);
+		public OnStanzaIQCallback OnStanzaIQ;
+
 
         public delegate void OnConnectionStateChangedCallback(CallbackConnectionState NewState);
         public OnConnectionStateChangedCallback OnConnectionStateChanged;
