@@ -170,13 +170,13 @@ namespace DXMPP
             CurrentConnectionState = ConnectionState.WaitingForFeatures;
 
             string Stream = string.Empty;
-            Stream += "<?xml version='1.0' encoding='utf-8'?>" + System.Environment.NewLine;
-            Stream += "<stream:stream" + System.Environment.NewLine;
-            Stream += " from = '" + MyJID.GetBareJID() + "'" + System.Environment.NewLine;
-            Stream += " to = '" + MyJID.GetDomain() + "'" + System.Environment.NewLine;
-            Stream += " version='1.0'" + System.Environment.NewLine;
-            Stream += " xml:lang='en'" + System.Environment.NewLine;
-            Stream += " xmlns='jabber:client'" + System.Environment.NewLine;
+            Stream += "<?xml version='1.0' encoding='utf-8'?>";
+            Stream += "<stream:stream";
+            Stream += " from = '" + MyJID.GetBareJID() + "'";
+            Stream += " to = '" + MyJID.GetDomain() + "'";
+            Stream += " version='1.0'";
+            Stream += " xml:lang='en'";
+            Stream += " xmlns='jabber:client'";
             Stream += " xmlns:stream='http://etherx.jabber.org/streams'>";
 
             Client.WriteTextToSocket(Stream);
