@@ -28,8 +28,9 @@ namespace DXMPP
 
 			if(Payload.Attribute("from") != null)
 				From = new JID(Payload.Attribute("from").Value);
-			
-			this.ID = Payload.Attribute("id").Value;
+
+			if(Payload.Attribute("id") != null)
+				this.ID = Payload.Attribute("id").Value;
 		}
 
 		public override string ToString()
@@ -70,7 +71,10 @@ namespace DXMPP
 		public enum StanzaMessageType
 		{
 			Chat,
-			Error
+			Error,
+			Groupchat,
+			Headline,
+			Normal
 		}
 
 		public StanzaMessageType MessageType;
@@ -84,6 +88,15 @@ namespace DXMPP
 				break;
 			case "chat":
 				this.MessageType = StanzaMessageType.Chat;
+				break;
+			case "groupchat":
+				this.MessageType = StanzaMessageType.Groupchat;
+				break;
+			case "headline":
+				this.MessageType = StanzaMessageType.Headline;
+				break;
+			case "normal":
+				this.MessageType = StanzaMessageType.Normal;
 				break;
 			}
 		}

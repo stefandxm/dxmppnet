@@ -471,6 +471,24 @@ namespace DXMPP
 					Console.WriteLine(Doc.ToString());
 				}*/
 
+                switch (CurrentConnectionState)
+                {
+                    case ConnectionState.WaitingForSession:
+                        BroadcastConnectionState(CallbackConnectionState.Connecting);
+                        break;
+                    case ConnectionState.WaitingForFeatures:
+                        break;
+                    case ConnectionState.Authenticating:
+                        BroadcastConnectionState(CallbackConnectionState.Connecting);
+                        break;
+                    case ConnectionState.Connected:
+                        BroadcastConnectionState(CallbackConnectionState.Connected);
+                        break;
+                    default:
+                        break;
+                }
+
+
                 if (Doc == null)
                     continue;
 
@@ -479,17 +497,14 @@ namespace DXMPP
                 switch (CurrentConnectionState)
                 {
                     case ConnectionState.WaitingForSession:
-                        BroadcastConnectionState(CallbackConnectionState.Connecting);
                         CheckForWaitingForSession(Doc);
                         break;
                     case ConnectionState.WaitingForFeatures:
                         break;
                     case ConnectionState.Authenticating:
-                        BroadcastConnectionState(CallbackConnectionState.Connecting);
                         CheckStreamForAuthenticationData(Doc);
                         break;
                     case ConnectionState.Connected:
-                        BroadcastConnectionState(CallbackConnectionState.Connected);
                         CheckForPresence(Doc);
                         CheckStreamForStanza(Doc);
                         break;
