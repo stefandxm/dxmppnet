@@ -117,6 +117,15 @@ namespace DXMPP
 			case StanzaMessageType.Error:
 				Payload.SetAttributeValue ("type", "error");
 				break;
+			case StanzaMessageType.Groupchat:
+					Payload.SetAttributeValue ("type", "groupchat");
+				break;
+			case StanzaMessageType.Headline:
+					Payload.SetAttributeValue ("type", "headline");
+				break;
+			case StanzaMessageType.Normal:
+					Payload.SetAttributeValue ("type", "normal");
+				break;					
 			}
 
 		}
@@ -144,6 +153,21 @@ namespace DXMPP
 		public StanzaIQ(XElement IQ)
 			: base(IQ)
 		{
+			switch (IQ.Attribute ("type").Value) 
+			{
+				case "get":
+					this.IQType = StanzaIQType.Get;
+					break;
+				case "set":
+					this.IQType = StanzaIQType.Set;
+					break;
+				case "result":
+					this.IQType = StanzaIQType.Result;
+					break;
+				case "error":
+					this.IQType = StanzaIQType.Error;
+					break;
+			}
 		}
 
 		public override string ToString()
