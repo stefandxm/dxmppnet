@@ -303,7 +303,7 @@ namespace DXMPP
         // who vomited?
         void CheckForTLSProceed(XElement Doc)
         {
-            if (Doc.Name != "proceed")
+            if (Doc.Name.LocalName != "proceed")
             {
                 Console.WriteLine("No proceed tag; B0rked SSL?!");
 

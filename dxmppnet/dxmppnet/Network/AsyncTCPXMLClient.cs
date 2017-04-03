@@ -24,7 +24,7 @@ namespace DXMPP
     {
         internal class AsyncTCPXMLClient : IDisposable
         {
-            int DebugLevel = 0;
+            int DebugLevel = 4;
 
             private readonly string Hostname;
             private readonly int Portnumber;
@@ -332,7 +332,7 @@ namespace DXMPP
 
                 while (Reader.Read())
                 {
-                    Log(2, "InnerXmlRead: NodeType: {0}, LocalName: {1}", Reader.NodeType, Reader.LocalName);
+                    Log(2, "InnerXmlRead: NodeType: {0}, Name: {1}", Reader.NodeType, Reader.Name);
                     switch (Reader.NodeType)
                     {
                         case XmlNodeType.Attribute:
@@ -358,7 +358,8 @@ namespace DXMPP
                             {
                                 bool SelfClosing = Reader.IsEmptyElement;
 
-                                XElement NewElement = new XElement(Reader.LocalName);
+								XNamespace Namespace = Reader.NamespaceURI;
+                                XElement NewElement = new XElement(Namespace + Reader.Name);
                                 LoadAttributesFromReaderToElement(Reader, NewElement);
 
                                 if (RootNode == null)
