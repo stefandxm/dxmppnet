@@ -24,7 +24,7 @@ namespace DXMPP
     {
         internal class AsyncTCPXMLClient : IDisposable
         {
-            int DebugLevel = 4;
+            int DebugLevel = 0;
 
             private readonly string Hostname;
             private readonly int Portnumber;
