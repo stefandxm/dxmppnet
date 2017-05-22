@@ -276,13 +276,12 @@ namespace DXMPP
             CurrentAuthenticationState = AuthenticationState.SASL;
             Client.SetReadMode(DXMPP.Network.AsyncTCPXMLClient.ReadMode.XML);
 
-            /*
             if(FeaturesSASL_ScramSHA1)
 			{
                 Authentication = new DXMPP.SASL.SASL_Mechanism_SCRAM_SHA1(Client, MyJID, Password);
 				Authentication.Begin();
 				return;
-			}*/
+			}
 
 			/*if(FeaturesSASL_DigestMD5)
 			{

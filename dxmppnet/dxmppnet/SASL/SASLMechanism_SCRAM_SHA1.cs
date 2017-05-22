@@ -25,7 +25,7 @@ namespace DXMPP
 
 			public override void Begin()
 			{
-                SelectedNounce = Guid.NewGuid().ToString();
+				SelectedNounce = "arne"; // Guid.NewGuid().ToString();
                 string Request = "n,,n=" + MyJID.GetUsername() + ",r=" + SelectedNounce;
 
                 /*char[] outArray = new char[1024];
@@ -45,10 +45,10 @@ namespace DXMPP
 
 			public override void Challenge(XElement Challenge)
 			{
+				//string ChallengeBase64 = "cj1hcm5lV21qejZsQkI5ZmxjUWtld09rWnNYQT09LHM9ZEVPaUhHaC9KRVRIc2xKcGZVY2FBZz09LGk9NDA5Ng=="; //Challenge.Value;
 				string ChallengeBase64 = Challenge.Value;
                 string DecodedChallenge = Encoding.UTF8.GetString(
-                    Convert.FromBase64String(ChallengeBase64));
-                Console.WriteLine("Got challenge: {0}", DecodedChallenge);
+                    Convert.FromBase64String(ChallengeBase64));                
 
                 string[] SplittedChallenge = DecodedChallenge.Split(',');
 
@@ -70,7 +70,7 @@ namespace DXMPP
                 SaltBytes[DecodedS.Length] = 0;
                 SaltBytes[DecodedS.Length+1] = 0;
                 SaltBytes[DecodedS.Length+2] = 0;
-                SaltBytes[DecodedS.Length+3] = 0;
+                SaltBytes[DecodedS.Length+3] = 1;
 
                 string c = "biws";
 
@@ -101,6 +101,7 @@ namespace DXMPP
                                                    c, 
                                                    r);
 
+
                 HMACSHA1 hmacFromStoredKey = new HMACSHA1(StoredKey);
                 byte[] ClientSignature = hmacFromStoredKey.ComputeHash(Encoding.UTF8.GetBytes(AuthMessage));
                 byte[] ClientProof = new byte[ClientSignature.Length];
@@ -125,7 +126,7 @@ namespace DXMPP
 
 			public override bool Verify(XElement SuccessTag)
 			{
-                Console.WriteLine("Got verify");
+                //Console.WriteLine("Got verify");
                 string SuccessVal = SuccessTag.Value;
                 string DecodedSuccess = Encoding.UTF8.GetString( Convert.FromBase64String(SuccessVal) );
                 string ServerProofValidResponse = "v=" + ServerProof;
