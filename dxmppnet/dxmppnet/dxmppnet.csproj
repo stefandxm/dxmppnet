@@ -64,6 +64,7 @@
     <Compile Include="Stanza.cs" />
     <Compile Include="Roster.cs" />
     <Compile Include="Network\Helpers\MojsStream.cs" />
+    <Compile Include="SASL\SASLMechanism_SCRAM_SHA1.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />

@@ -276,21 +276,22 @@ namespace DXMPP
             CurrentAuthenticationState = AuthenticationState.SASL;
             Client.SetReadMode(DXMPP.Network.AsyncTCPXMLClient.ReadMode.XML);
 
-            /*if(FeaturesSASL_ScramSHA1)
+            /*
+            if(FeaturesSASL_ScramSHA1)
 			{
-				Console.WriteLine ("Deadlock because i havent implemented scram sha!");
-				//Authentication = new  SASL::SASL_Mechanism_SCRAM_SHA1 ( Client, MyJID, Password),
-				//Authentication->Begin();
+                Authentication = new DXMPP.SASL.SASL_Mechanism_SCRAM_SHA1(Client, MyJID, Password);
+				Authentication.Begin();
 				return;
-			}
-			if(FeaturesSASL_DigestMD5)
+			}*/
+
+			/*if(FeaturesSASL_DigestMD5)
 			{
 				Console.WriteLine ("Deadlock because i havent implemented digest md5!");
 				//Authentication = new  SASL::Weak::SASL_Mechanism_DigestMD5 ( Client , MyJID, Password),
 				//Authentication->Begin();
 				return;
 			}*/
-            if (FeaturesSASL_Plain)
+			if (FeaturesSASL_Plain)
             {
                 Authentication = new DXMPP.SASL.Weak.SASLMechanism_PLAIN(Client, MyJID, Password);
                 Authentication.Begin();
