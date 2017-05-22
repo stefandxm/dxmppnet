@@ -2,7 +2,7 @@
 <package >
   <metadata>
     <id>DXMPP.NET</id>
-    <version>1.0</version>
+    <version>1.000000111</version>
     <title>DXMPPNET</title>
     <authors>Stefan Karlsson and contributors</authors>
     <owners>Stefan Karlsson</owners>
@@ -15,4 +15,7 @@
     <copyright>Copyright 2017</copyright>
     <tags>xmpp dxmpp dxmppnet jabber xep xsf jdev extensible messaging and presence protocol</tags>
   </metadata>
+  <files>
+	<file src="bin/Release/dxmppnet.dll" target="lib/net40"/>
+  </files>
 </package>
