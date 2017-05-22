@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>DXMPP.NET</id>
+    <version>1.0</version>
+    <title>DXMPPNET</title>
+    <authors>Stefan Karlsson and contributors</authors>
+    <owners>Stefan Karlsson</owners>
+    <licenseUrl>http://www.boost.org/users/license.html</licenseUrl>
+    <projectUrl>http://deusexmachinae.se/dxmppnet/</projectUrl>
+    <iconUrl>http://deusexmachinae.se/dxmppnet/dxmpp.png</iconUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>An almost working XMPP client library written in C#.</description>
+    <releaseNotes>Added nuget package.</releaseNotes>
+    <copyright>Copyright 2017</copyright>
+    <tags>xmpp dxmpp dxmppnet jabber xep xsf jdev extensible messaging and presence protocol</tags>
+  </metadata>
+</package>
