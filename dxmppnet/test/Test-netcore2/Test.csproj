@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Test</RootNamespace>
+    <AssemblyName>test</AssemblyName>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Linq" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Properties\AssemblyInfo.cs" />
+    <Compile Include="..\Program.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\dxmppnet\dxmppnet-netcore2\dxmppnet.csproj">
+      <Project>{2B2184F5-B68B-4DFC-9FE1-3F41989E3999}</Project>
+      <Name>dxmppnet</Name>
+    </ProjectReference>
+  </ItemGroup>
+</Project>

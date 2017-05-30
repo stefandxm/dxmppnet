@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Xml;
 using System.Xml.Linq;
-using System.Xml.XPath;
+
 using System.Text;
+using System.Security.Cryptography.X509Certificates;
 
 namespace DXMPP
 {
@@ -30,6 +31,7 @@ namespace DXMPP
 
 			public JID MyJID;
 			public string Password;
+			public X509Certificate Certificate;
 			public Network.AsyncTCPXMLClient Uplink;
 
 			public  SASLMechanism(Network.AsyncTCPXMLClient Uplink,
@@ -39,6 +41,14 @@ namespace DXMPP
 				this.Uplink = Uplink;
 				this.MyJID = MyJID;
 				this.Password = Password;
+			}
+			public  SASLMechanism(Network.AsyncTCPXMLClient Uplink,
+				JID MyJID, 
+				X509Certificate Certificate)        
+			{   
+				this.Uplink = Uplink;
+				this.MyJID = MyJID;
+				this.Certificate = Certificate;
 			}
 			protected string SelectedNounce;
 

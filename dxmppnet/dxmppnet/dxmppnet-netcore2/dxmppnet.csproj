@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+ <!-- <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{2B2184F5-B68B-4DFC-9FE1-3F41989E3999}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>DXMPP</RootNamespace>
+    <AssemblyName>dxmppnet</AssemblyName>
+    <TargetFrameworkProfile />
+    <TargetFrameworkVersion>netcoreapp1.1</TargetFrameworkVersion>
+  </PropertyGroup>-->
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Net" />
+    <Reference Include="System.Net.Security" />
+    
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../AtomicLongCounter.cs" />
+    <Compile Include="../Properties\AssemblyInfo.cs" />
+    <Compile Include="../Network\AsyncTCPXMLClient.cs" />
+    <Compile Include="../Connection.cs" />
+    <Compile Include="../JID.cs" />
+    <Compile Include="../SASL\SASLMechanism.cs" />
+    <Compile Include="../SASL\SASLMechanism_PLAIN.cs" />
+    <Compile Include="../Stanza.cs" />
+    <Compile Include="../Roster.cs" />
+    <Compile Include="../Network\Helpers\MojsStream.cs" />
+    <Compile Include="../SASL\SASLMechanism_SCRAM_SHA1.cs" />
+    <Compile Include="../SASL\SASLMechanism_EXTERNAL.cs" />
+  </ItemGroup>
+  <ItemGroup />
+</Project>

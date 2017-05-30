@@ -26,8 +26,22 @@ namespace Test
 
 			public EchoBot()
 			{
-				Connection = new DXMPP.Connection("deusexmachinae.se", 5222, 
-						new DXMPP.JID("dxmpp@users/net"), "dxmpp");
+				// Chose to connect with Certificate (SASL External) or with password (SCRAM-SHA-1)
+				X509Certificate2 Certificate = 
+					new X509Certificate2("/home/stefan/src/certs/mycert.pfx", "", 
+					                     X509KeyStorageFlags.MachineKeySet);
+
+				/*
+				Connection = new DXMPP.Connection("sarah", 5222, 
+				                                  new DXMPP.JID("dxmpp@sarah/test"), "dxmpptest");
+				*/
+
+				Connection = new DXMPP.Connection("sarah", 5222, 
+				                                  new DXMPP.JID("dxmpp@sarah/test"), 
+				                                  "dxmpptest" /* Optional with certificate but then we cannot fall back to scram mechanism */, 
+				                                  Certificate);
+
+				Connection.AllowSelfSignedServerCertificate = true;
 
 				Connection.OnStanzaMessage += HandleOnStanzaCallback;
                 Connection.OnConnectionStateChanged += HandleOnConnectionStateChangedCallback;

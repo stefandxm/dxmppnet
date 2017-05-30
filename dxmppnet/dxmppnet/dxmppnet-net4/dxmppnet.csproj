@@ -7,8 +7,8 @@
     <OutputType>Library</OutputType>
     <RootNamespace>DXMPP</RootNamespace>
     <AssemblyName>dxmppnet</AssemblyName>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <TargetFrameworkProfile />
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -19,6 +19,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <ConsolePause>false</ConsolePause>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>full</DebugType>
@@ -27,6 +28,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <ConsolePause>false</ConsolePause>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x86'">
     <DebugSymbols>true</DebugSymbols>
@@ -38,6 +40,7 @@
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
     <WarningLevel>4</WarningLevel>
     <Optimize>false</Optimize>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x86'">
     <OutputPath>bin\x86\Release\</OutputPath>
@@ -47,24 +50,27 @@
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
     <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Xml" />
     <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Net" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AtomicLongCounter.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Network\AsyncTCPXMLClient.cs" />
-    <Compile Include="Connection.cs" />
-    <Compile Include="JID.cs" />
-    <Compile Include="SASL\SASLMechanism.cs" />
-    <Compile Include="SASL\SASLMechanism_PLAIN.cs" />
-    <Compile Include="Stanza.cs" />
-    <Compile Include="Roster.cs" />
-    <Compile Include="Network\Helpers\MojsStream.cs" />
-    <Compile Include="SASL\SASLMechanism_SCRAM_SHA1.cs" />
+    <Compile Include="../AtomicLongCounter.cs" />
+    <Compile Include="../Properties\AssemblyInfo.cs" />
+    <Compile Include="../Network\AsyncTCPXMLClient.cs" />
+    <Compile Include="../Connection.cs" />
+    <Compile Include="../JID.cs" />
+    <Compile Include="../SASL\SASLMechanism.cs" />
+    <Compile Include="../SASL\SASLMechanism_PLAIN.cs" />
+    <Compile Include="../Stanza.cs" />
+    <Compile Include="../Roster.cs" />
+    <Compile Include="../Network\Helpers\MojsStream.cs" />
+    <Compile Include="../SASL\SASLMechanism_SCRAM_SHA1.cs" />
+    <Compile Include="../SASL\SASLMechanism_EXTERNAL.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />

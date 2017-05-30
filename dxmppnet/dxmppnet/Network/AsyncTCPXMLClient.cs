@@ -10,13 +10,11 @@ using System.Threading;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
-using System.Xml.XPath;
 using System.Linq;
 using System.IO;
 
 using System.Collections.Generic;
 using System.Collections.Concurrent;
-
 
 namespace DXMPP
 {
@@ -33,6 +31,7 @@ namespace DXMPP
             private Stream ActiveStream;
             private Timer KeepAliveTimer;
             private readonly MojsStream XMLStream;
+			X509Certificate2 Certificate;
 
             const int SendTimeout = 20000;
 
@@ -48,7 +47,7 @@ namespace DXMPP
             // bigger than max record length for SSL/TLS
             byte[] ReceiveBuffer = new byte[16384];
 
-            bool IsConnectedViaTLS = false;
+            public bool IsConnectedViaTLS = false;
 
 
             private readonly ConcurrentQueue<XElement> Documents = new ConcurrentQueue<XElement>();
@@ -86,11 +85,21 @@ namespace DXMPP
                     Console.WriteLine(Message, FormatObjs);
             }
 
+			private static X509Certificate LocalCertificateSelectionCallback(
+				object sender,
+				string targetHost,
+				X509CertificateCollection localCertificates,
+				X509Certificate remoteCertificate,
+				string[] acceptableIssuers
+			)
+			{
+				return localCertificates [0];
+			}
 
             private static bool ServerValidationCallback(object Sender,
                 X509Certificate Certificate, X509Chain Chain, SslPolicyErrors PolicyErrors)
-            {
-				return true; // DO NOT COMMIT
+            {	
+
                 switch (PolicyErrors)
                 {
                     case SslPolicyErrors.RemoteCertificateNameMismatch:
@@ -110,7 +119,13 @@ namespace DXMPP
                 return true;
             }
 
-            public void ConnectTLS(bool AllowSelfSignedCertificates)
+			private static bool ServerValidationCallbackNoVerifcation(object Sender,
+			                                              X509Certificate Certificate, X509Chain Chain, SslPolicyErrors PolicyErrors)
+			{	
+				return true;
+			}
+
+            public void ConnectTLS()
             {   //TextRead();
                 ClearRawTextData();
                 lock (Client)
@@ -123,16 +138,41 @@ namespace DXMPP
                         TotalDataReceivedForTlsConnection.Add(BytesRead);
                     }
 
-                    RemoteCertificateValidationCallback CertValidationCallback =
-                        new RemoteCertificateValidationCallback(ServerValidationCallback);
+					RemoteCertificateValidationCallback CertValidationCallback = null;
+					if (AllowSelfSignedServerCertificate)
+						CertValidationCallback = new RemoteCertificateValidationCallback (ServerValidationCallbackNoVerifcation);
+					else
+						CertValidationCallback = new RemoteCertificateValidationCallback (ServerValidationCallback);
+
+					LocalCertificateSelectionCallback MycertCallback = 
+						new LocalCertificateSelectionCallback( LocalCertificateSelectionCallback );
 
 
                     try
                     {
                         Console.WriteLine("Connecting with TLS");
-                        TLSStream = new SslStream(ActiveStream, true, CertValidationCallback);
-                        TLSStream.WriteTimeout = SendTimeout;
-                        TLSStream.AuthenticateAsClient(Hostname);
+						if (Certificate != null) 
+						{
+							TLSStream = new SslStream (ActiveStream, true, CertValidationCallback, MycertCallback);
+							TLSStream.WriteTimeout = SendTimeout;
+
+							X509CertificateCollection Certificates = new X509CertificateCollection ();
+							Certificates.Add (Certificate);
+
+							TLSStream.AuthenticateAsClient (Hostname,
+								Certificates,
+								SslProtocols.Tls,
+								false);
+						} 
+						else 
+						{
+							TLSStream = new SslStream (ActiveStream, true, CertValidationCallback);
+							TLSStream.WriteTimeout = SendTimeout;
+
+							TLSStream.AuthenticateAsClient (Hostname);
+						}
+
+						//TLSStream.AuthenticateAsClient(Hostname);
                         ActiveStream = TLSStream;
                         if (Client.Available > 0)
                         {
@@ -599,10 +639,19 @@ namespace DXMPP
                 }
             }
 
-            public AsyncTCPXMLClient(string Hostname, int Portnumber, OnDataCallback OnData, OnDisconnectCallback OnDisconnect)
+			bool AllowSelfSignedServerCertificate;
+
+            public AsyncTCPXMLClient(string Hostname, 
+			                         int Portnumber, 
+			                         X509Certificate2 Certificate, 
+			                         bool AllowSelfSignedServerCertificate, 
+			                         OnDataCallback OnData, 
+			                         OnDisconnectCallback OnDisconnect)
             {
                 this.Hostname = Hostname;
                 this.Portnumber = Portnumber;
+				this.Certificate = Certificate;
+				this.AllowSelfSignedServerCertificate = AllowSelfSignedServerCertificate;
                 this.OnData = OnData;
                 this.OnDisconnect = OnDisconnect;
 

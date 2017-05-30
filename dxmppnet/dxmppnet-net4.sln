@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "dxmppnet", "dxmppnet\dxmppnet.csproj", "{2B2184F5-B68B-4DFC-9FE1-3F41989E3999}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "dxmppnet", "dxmppnet\dxmppnet-net4\dxmppnet.csproj", "{2B2184F5-B68B-4DFC-9FE1-3F41989E3999}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test", "test\Test.csproj", "{F3B7AE3D-1D82-475B-B043-A5AB6CC99FDF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test", "test\Test-net4\Test.csproj", "{F3B7AE3D-1D82-475B-B043-A5AB6CC99FDF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

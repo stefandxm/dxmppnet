@@ -4,6 +4,8 @@ using System.Xml;
 using System.Xml.XPath;
 using System.Xml.Linq;
 using System.Threading;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 
 namespace DXMPP
 {
@@ -48,6 +50,7 @@ namespace DXMPP
         bool FeaturesSASL_DigestMD5 = false;
         bool FeaturesSASL_CramMD5 = false;
         bool FeaturesSASL_ScramSHA1 = false;
+		bool FeaturesSASL_External = false;
         bool FeaturesSASL_Plain = false;
         bool FeaturesStartTLS;
 
@@ -56,6 +59,11 @@ namespace DXMPP
 
         string Hostname;
         string Password;
+		X509Certificate2 Certificate;
+		public bool AllowSelfSignedServerCertificate = false;
+		public bool AllowPlainAuthentication = false;
+		public bool AllowPlainAuthenticationWithoutTLS = false;
+
         int Portnumber;
         JID MyJID;
 
@@ -83,7 +91,7 @@ namespace DXMPP
             {
                 Client.SetReadMode(DXMPP.Network.AsyncTCPXMLClient.ReadMode.Text);
                 Client.ClearRawTextData();
-                Client.ConnectTLS(true);
+                Client.ConnectTLS();
                 OpenXMPPStream();
             }
             catch
@@ -110,7 +118,12 @@ namespace DXMPP
                 BroadcastConnectionState(CallbackConnectionState.Connecting);
                 try
                 {
-                    Client = new Network.AsyncTCPXMLClient(Hostname, Portnumber, ClientGotData, ClientDisconnected);
+					Client = new Network.AsyncTCPXMLClient(Hostname, 
+					                                       Portnumber, 
+					                                       Certificate, 
+					                                       AllowSelfSignedServerCertificate,  
+					                                       ClientGotData, 
+					                                       ClientDisconnected);
                 }
                 catch
                 {
@@ -190,6 +203,7 @@ namespace DXMPP
             FeaturesSASL_DigestMD5 = false;
             FeaturesSASL_CramMD5 = false;
             FeaturesSASL_ScramSHA1 = false;
+			FeaturesSASL_External = false;
             FeaturesSASL_Plain = false;
             FeaturesStartTLS = false;
 
@@ -240,7 +254,6 @@ namespace DXMPP
             foreach (XElement Mechanism in Mechanisms)
             {
                 string MechanismName = Mechanism.Value;
-
                 switch (MechanismName.ToUpper())
                 {
                     case "DIGEST-MD5":
@@ -252,6 +265,9 @@ namespace DXMPP
                     case "SCRAM-SHA-1":
                         FeaturesSASL_ScramSHA1 = true;
                         break;
+					case "EXTERNAL":
+						FeaturesSASL_External = true;
+						break;
                     case "PLAIN":
                         FeaturesSASL_Plain = true;
                         break;
@@ -276,8 +292,17 @@ namespace DXMPP
             CurrentAuthenticationState = AuthenticationState.SASL;
             Client.SetReadMode(DXMPP.Network.AsyncTCPXMLClient.ReadMode.XML);
 
+			if(FeaturesSASL_External && Certificate != null)
+			{
+				Console.WriteLine ("Authenticating with EXTERNAL");
+				Authentication = new DXMPP.SASL.SASL_Mechanism_EXTERNAL(Client, MyJID, Certificate);
+				Authentication.Begin();
+				return;
+			}
+
             if(FeaturesSASL_ScramSHA1)
 			{
+				Console.WriteLine ("Authenticating with SCRAM-SHA-1");
                 Authentication = new DXMPP.SASL.SASL_Mechanism_SCRAM_SHA1(Client, MyJID, Password);
 				Authentication.Begin();
 				return;
@@ -290,8 +315,10 @@ namespace DXMPP
 				//Authentication->Begin();
 				return;
 			}*/
-			if (FeaturesSASL_Plain)
+			if ( (FeaturesSASL_Plain && AllowPlainAuthentication) && 
+			    Client.IsConnectedViaTLS || AllowPlainAuthenticationWithoutTLS )
             {
+				Console.WriteLine ("WARNING: Authenticating with PLAIN");
                 Authentication = new DXMPP.SASL.Weak.SASLMechanism_PLAIN(Client, MyJID, Password);
                 Authentication.Begin();
                 return;
@@ -618,7 +645,11 @@ namespace DXMPP
             }
         }
 
-        public Connection(string Hostname, int Portnumber, JID RequestedJID, string Password)
+		public Connection(string Hostname, 
+		                  int Portnumber, 
+		                  JID RequestedJID, 
+		                  string Password, 
+		                  X509Certificate2 Certificate = null)
         {
             this.Hostname = Hostname;
             this.Portnumber = Portnumber;
@@ -627,7 +658,16 @@ namespace DXMPP
                 MyJID.SetResource(System.Guid.NewGuid().ToString());
             this.Password = Password;
             this.RosterMaintainer = new Roster(this);
+			this.Certificate = Certificate;
         }
+
+		public Connection(string Hostname, 
+		                  int Portnumber, 
+		                  JID RequestedJID, 
+		                  X509Certificate2 Certificate)
+			:  this(Hostname, Portnumber, RequestedJID, null, Certificate)
+		{			
+		}
     }
 }
 
