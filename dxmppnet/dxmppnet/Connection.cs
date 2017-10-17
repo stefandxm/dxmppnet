@@ -644,11 +644,12 @@ namespace DXMPP
             }
         }
 
-		public Connection(string Hostname, 
-		                  int Portnumber, 
-		                  JID RequestedJID, 
-		                  string Password, 
-		                  X509Certificate2 Certificate = null)
+		public Connection(string Hostname,
+						  int Portnumber,
+						  JID RequestedJID,
+						  string Password,
+						  X509Certificate2 Certificate = null,
+		                  bool AllowSelfSignedServerCertificate = false)
         {
             this.Hostname = Hostname;
             this.Portnumber = Portnumber;
@@ -658,6 +659,7 @@ namespace DXMPP
             this.Password = Password;
             this.RosterMaintainer = new Roster(this);
 			this.Certificate = Certificate;
+			this.AllowSelfSignedServerCertificate = AllowSelfSignedServerCertificate;
         }
 
 		public Connection(string Hostname, 

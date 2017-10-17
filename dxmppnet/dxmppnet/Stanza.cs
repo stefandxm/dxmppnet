@@ -82,6 +82,11 @@ namespace DXMPP
 		public StanzaMessage(XElement Message)
 			: base(Message)
 		{
+			if (Message.Attribute("type") == null)
+			{
+				this.MessageType = StanzaMessageType.Normal;
+				return;
+			}
 			switch (Message.Attribute ("type").Value) {
 			case "error":
 				this.MessageType = StanzaMessageType.Error;
