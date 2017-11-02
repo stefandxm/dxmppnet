@@ -72,6 +72,7 @@ namespace DXMPP
         private readonly object ClientReplacingMutex = new object();
         private long TotalBytesReceivedBeforeLastReconnect = 0;
         private long TotalBytesSentBeforeLastReconnect = 0;
+		int KeepAliveByWhiteSpaceInterval = 10;
 
         void Reset()
         {
@@ -356,7 +357,8 @@ namespace DXMPP
             string Presence = "<presence/>";
             Client.WriteTextToSocket(Presence);
             CurrentConnectionState = ConnectionState.Connected;
-            Client.SetKeepAliveByWhiteSpace(" ", 10);
+			if(KeepAliveByWhiteSpaceInterval > 0)
+            	Client.SetKeepAliveByWhiteSpace(" ", KeepAliveByWhiteSpaceInterval);
         }
         void CheckForBindSuccess(XElement Doc)
         {
@@ -649,7 +651,8 @@ namespace DXMPP
 						  JID RequestedJID,
 						  string Password,
 						  X509Certificate2 Certificate = null,
-		                  bool AllowSelfSignedServerCertificate = false)
+		                  bool AllowSelfSignedServerCertificate = false,
+		                  int KeepAliveByWhiteSpaceInterval = 30)
         {
             this.Hostname = Hostname;
             this.Portnumber = Portnumber;
@@ -660,6 +663,7 @@ namespace DXMPP
             this.RosterMaintainer = new Roster(this);
 			this.Certificate = Certificate;
 			this.AllowSelfSignedServerCertificate = AllowSelfSignedServerCertificate;
+			this.KeepAliveByWhiteSpaceInterval = KeepAliveByWhiteSpaceInterval;
         }
 
 		public Connection(string Hostname, 

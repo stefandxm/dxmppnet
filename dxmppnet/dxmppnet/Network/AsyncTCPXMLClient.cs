@@ -22,7 +22,7 @@ namespace DXMPP
     {
         internal class AsyncTCPXMLClient : IDisposable
         {
-            int DebugLevel = 0;
+            public static int DebugLevel = 0;
 
             private readonly string Hostname;
             private readonly int Portnumber;
@@ -199,7 +199,7 @@ namespace DXMPP
                 {
                     TotalXmlDocumentsDequeued.Inc1();
                     if (DebugLevel >= 2)
-                        Log(2, "Dequeued document: {0}", RVal.ToString());
+                        Log(4, "Dequeued document: {0}", RVal.ToString());
                     return RVal;
                 }
 
@@ -235,12 +235,12 @@ namespace DXMPP
                     if (Mode == this.Mode)
                         return;
 
-                    Log(1, "Switching to read mode: " + Mode.ToString());
+                    Log(4, "Switching to read mode: " + Mode.ToString());
 
                     if (Mode == ReadMode.XML)
                     {
                         XMLStream.ClearStart();
-                        Log(3, "XMLStream Cleared and started");
+                        Log(4, "XMLStream Cleared and started");
                     }
 
                     this.Mode = Mode;
@@ -281,7 +281,7 @@ namespace DXMPP
                                 if (DebugLevel >= 2)
                                 {
                                     string PushData = Encoding.UTF8.GetString(DataToSend);
-                                    Log(2, "Push Data to XmlStream: {0}", PushData);
+                                    Log(4, "Push Data to XmlStream: {0}", PushData);
                                 }
                                 XMLStream.PushData(DataToSend);
                             }
@@ -291,7 +291,7 @@ namespace DXMPP
                     }
                     catch (Exception e)
                     {
-                        Log(1, "OnDisconnect in PushData: {0}", e.ToString());
+                        Log(3, "OnDisconnect in PushData: {0}", e.ToString());
                         if (OnDisconnect == null)
                             OnDisconnect.Invoke();
                         return false;
@@ -325,7 +325,7 @@ namespace DXMPP
                                 {
                                     string NewData = Encoding.UTF8.GetString(ReceiveBuffer, 0, NrGot);
                                     IncomingData += NewData;
-                                    Log(2, "Adding incommingdata: {0}", NewData);
+                                    Log(4, "Adding incommingdata: {0}", NewData);
                                 }
                                 catch (System.Exception ex)
                                 {
@@ -357,7 +357,7 @@ namespace DXMPP
                 if (!XMLStream.HasData)
                     return;
 
-                Log(3, "Innerxml read has data");
+                Log(4, "Innerxml read has data");
 
                 XmlReaderSettings Settings = new XmlReaderSettings();
                 Settings.ValidationType = ValidationType.None;
@@ -368,11 +368,11 @@ namespace DXMPP
                 XElement RootNode = null;
                 XElement CurrentElement = null;
 
-                Log(2, "InnerXmlRead");
+                Log(4, "InnerXmlRead");
 
                 while (Reader.Read())
                 {
-                    Log(2, "InnerXmlRead: NodeType: {0}, Name: {1}", Reader.NodeType, Reader.Name);
+                    Log(4, "InnerXmlRead: NodeType: {0}, Name: {1}", Reader.NodeType, Reader.Name);
                     switch (Reader.NodeType)
                     {
                         case XmlNodeType.Attribute:
@@ -575,7 +575,7 @@ namespace DXMPP
             {
                 lock (IncomingData)
                 {
-                    Log(2, "Dequeing incommingdata: {0}", IncomingData);
+                    Log(4, "Dequeing incommingdata: {0}", IncomingData);
                     return IncomingData;
                 }
             }
@@ -617,6 +617,7 @@ namespace DXMPP
 
             public void WriteTextToSocket(string Data)
             {
+				Log(2, "Outgoing data: " + Data);
                 byte[] OutgoingBuffer = Encoding.UTF8.GetBytes(Data);
                 lock (Client)
                 {
