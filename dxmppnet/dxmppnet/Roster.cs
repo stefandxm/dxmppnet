@@ -4,6 +4,8 @@ using System.Xml;
 using System.Xml.XPath;
 using System.Xml.Linq;
 using System.Threading;
+using System.Collections.Generic;
+using System.Collections.Concurrent;
 
 namespace DXMPP
 {
@@ -28,6 +30,16 @@ namespace DXMPP
 		public delegate void OnPresenceCallback(JID From, bool Available, int Priority, string Status, string Show);
 		public OnPresenceCallback OnPresence;
 
+		public struct PresenceInformation
+		{
+			public int Priority;
+			public JID FullJID;
+			public string Show;
+			public string Status;
+		}
+
+		public ConcurrentDictionary<string, List<PresenceInformation>> AggregatedPresence = 
+			new ConcurrentDictionary<string, List<PresenceInformation>>();
 
 		void PresenceHandler (XElement Node)
 		{
@@ -39,10 +51,10 @@ namespace DXMPP
             }
 
 			switch (type) {
-			case "subcribe":
+			case "subscribe":
 				HandleSubscribe (Node);
 				return;
-			case "subcribed":
+			case "subscribed":
 				HandleSubscribed (Node);
 				return;
 			case "unsubscribe":
@@ -69,6 +81,20 @@ namespace DXMPP
             if (StatusNode != null)
 				Show = StatusNode.Value;
 
+			PresenceInformation PI = new PresenceInformation()
+			{
+				FullJID = From,
+				Priority = Priority,
+				Show = Show,
+				Status = Status
+			};
+
+			if (!AggregatedPresence.ContainsKey(From.GetBareJID()))
+			{
+				AggregatedPresence[From.GetBareJID()] = new List<PresenceInformation>();
+			}
+		    AggregatedPresence[From.GetBareJID()].Add(PI);
+
 			if (OnPresence != null)
 				OnPresence.Invoke (From, Status != "unavailable", Priority, Status, Show);
 		}
@@ -85,10 +111,9 @@ namespace DXMPP
 				return;
 
 			XElement PresenceTag = new XElement ("presence");
-			XElement SubscribeTag = new XElement ("subscribed");
-			SubscribeTag.SetAttributeValue ("to", From.GetBareJID ());
-			PresenceTag.Add (SubscribeTag);
-			Uplink.GetNetworkClient ().WriteTextToSocket (PresenceTag.ToString ());
+			PresenceTag.SetAttributeValue("to", From.GetBareJID());
+			PresenceTag.SetAttributeValue("type", "subscribed");
+			Uplink.GetNetworkClient().WriteTextToSocket(PresenceTag.ToString());
 
 			if (Action == SubscribeResponse.Allow)
 				return;
@@ -131,20 +156,18 @@ namespace DXMPP
 		public void Subscribe(JID To)
 		{
 			XElement PresenceTag = new XElement ("presence");
-			XElement SubscribeTag = new XElement ("subscribe");
-			SubscribeTag.SetAttributeValue ("to", To.GetBareJID ());
-			PresenceTag.Add (SubscribeTag);
-			Uplink.GetNetworkClient ().WriteTextToSocket (PresenceTag.ToString ());
+
+			PresenceTag.SetAttributeValue("to", To.GetBareJID());
+			PresenceTag.SetAttributeValue("type", "subscribe");
+			Uplink.GetNetworkClient().WriteTextToSocket(PresenceTag.ToString());
 		}
 
 		public void Unsubscribe(JID To)
 		{
-			XElement PresenceTag = new XElement ("presence");
-			XElement SubscribeTag = new XElement ("unsubscribe");
-			SubscribeTag.SetAttributeValue ("to", To.GetBareJID ());
-			PresenceTag.Add (SubscribeTag);
-			Uplink.GetNetworkClient ().WriteTextToSocket (PresenceTag.ToString ());
-		}
+			XElement PresenceTag = new XElement("presence");
+			PresenceTag.SetAttributeValue("to", To.GetBareJID());
+			PresenceTag.SetAttributeValue("type", "unsubscribe");
+			Uplink.GetNetworkClient().WriteTextToSocket(PresenceTag.ToString());		}
 
 		private Connection Uplink;
 
