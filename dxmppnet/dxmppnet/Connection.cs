@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Xml;
 using System.Xml.XPath;
@@ -103,6 +103,7 @@ namespace DXMPP
                 BroadcastConnectionState(CallbackConnectionState.ErrorUnknown);
             }
         }
+        int DebugLevel = 0;
 
         public void Connect()
         {
@@ -123,7 +124,8 @@ namespace DXMPP
 					                                       Certificate, 
 					                                       AllowSelfSignedServerCertificate,  
 					                                       ClientGotData, 
-					                                       ClientDisconnected);
+					                                       ClientDisconnected,
+                                                           DebugLevel);
                 }
                 catch
                 {
@@ -185,7 +187,8 @@ namespace DXMPP
             string Stream = string.Empty;
             Stream += "<?xml version='1.0' encoding='utf-8'?>";
             Stream += "<stream:stream";
-            Stream += " from = '" + MyJID.GetBareJID() + "'";
+            if(MyJID.GetBareJID() != null)
+                Stream += " from = '" + MyJID.GetBareJID() + "'";
             Stream += " to = '" + MyJID.GetDomain() + "'";
             Stream += " version='1.0'";
             Stream += " xml:lang='en'";
@@ -369,6 +372,9 @@ namespace DXMPP
                 CurrentConnectionState = ConnectionState.ErrorUnknown;
                 return;
             }
+
+            this.MyJID = new JID((Doc.FirstNode as XElement).Value);
+
 
             string StartSession = "<iq type='set' id='1'><session xmlns='urn:ietf:params:xml:ns:xmpp-session'/></iq>";
             Client.WriteTextToSocket(StartSession);
@@ -652,7 +658,8 @@ namespace DXMPP
 						  string Password,
 						  X509Certificate2 Certificate = null,
 		                  bool AllowSelfSignedServerCertificate = false,
-		                  int KeepAliveByWhiteSpaceInterval = 30)
+		                  int KeepAliveByWhiteSpaceInterval = 30,
+                          int DebugLevel = 0)
         {
             this.Hostname = Hostname;
             this.Portnumber = Portnumber;
@@ -664,15 +671,26 @@ namespace DXMPP
 			this.Certificate = Certificate;
 			this.AllowSelfSignedServerCertificate = AllowSelfSignedServerCertificate;
 			this.KeepAliveByWhiteSpaceInterval = KeepAliveByWhiteSpaceInterval;
+            this.DebugLevel = DebugLevel;
         }
 
 		public Connection(string Hostname, 
 		                  int Portnumber, 
 		                  JID RequestedJID, 
-		                  X509Certificate2 Certificate)
-			:  this(Hostname, Portnumber, RequestedJID, null, Certificate)
+		                  X509Certificate2 Certificate,
+                          int DebugLevel = 0)
+			:  this(Hostname, Portnumber, RequestedJID, null, Certificate, false, 30, DebugLevel)
 		{			
 		}
+
+        public Connection(string Hostname,
+                          int Portnumber,
+                          string Domain,
+                          X509Certificate2 Certificate,
+                          int DebugLevel =0)
+            : this(Hostname, Portnumber, new JID(null, Domain, null),  Certificate, DebugLevel)
+        {
+        }
     }
 }
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Net.Security;
@@ -22,6 +22,7 @@ namespace DXMPP
     {
         internal class AsyncTCPXMLClient : IDisposable
         {
+            int DebugLevel = 0;
             public static int DebugLevel = 0;
 
             private readonly string Hostname;
@@ -647,7 +648,8 @@ namespace DXMPP
 			                         X509Certificate2 Certificate, 
 			                         bool AllowSelfSignedServerCertificate, 
 			                         OnDataCallback OnData, 
-			                         OnDisconnectCallback OnDisconnect)
+			                         OnDisconnectCallback OnDisconnect,
+                                     int DebugLevel)
             {
                 this.Hostname = Hostname;
                 this.Portnumber = Portnumber;
@@ -655,6 +657,7 @@ namespace DXMPP
 				this.AllowSelfSignedServerCertificate = AllowSelfSignedServerCertificate;
                 this.OnData = OnData;
                 this.OnDisconnect = OnDisconnect;
+                this.DebugLevel = DebugLevel;
 
                 XMLStream = new MojsStream();
                 Client = new TcpClient(this.Hostname, this.Portnumber);
